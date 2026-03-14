@@ -1,12 +1,10 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import { z } from 'zod';
 import { createLogger } from '../../logger.js';
 import { createTool, type Tool, type ToolContext } from '../index.js';
 import { ProcessRegistry } from './process-registry.js';
 
 const logger = createLogger('core:bash');
-const execAsync = promisify(exec);
 
 const BashSchema = z.object({
   command: z.string().describe('The shell command to execute'),
@@ -55,53 +53,62 @@ export function createBashTool(): Tool {
 
       logger.debug('bash command', { command: args.command, cwd });
 
-      try {
-        const { stdout, stderr } = await execAsync(args.command, {
+      return new Promise((resolve) => {
+        let stdout = '';
+        let stderr = '';
+        let totalBytes = 0;
+        const MAX_BUFFER = 10 * 1024 * 1024; // 10 MB
+
+        const child = spawn('sh', ['-c', args.command], {
           cwd,
-          timeout,
-          maxBuffer: 10 * 1024 * 1024,
+          env: process.env as NodeJS.ProcessEnv,
         });
 
-        logger.debug('bash command succeeded', {
-          command: args.command,
-          stdoutLength: stdout.length,
-          hasStderr: stderr.length > 0,
-        });
+        // Kill after timeout
+        const timer = setTimeout(() => {
+          child.kill('SIGTERM');
+        }, timeout);
 
-        return {
-          success: true,
-          stdout: stdout || '',
-          stderr: stderr || '',
-          exitCode: 0,
-        };
-      } catch (error) {
-        if (error instanceof Error) {
-          if ('stdout' in error && 'stderr' in error) {
-            const execError = error as { stdout?: string; stderr?: string; code?: number };
-            logger.warn('bash command failed', {
-              command: args.command,
-              exitCode: execError.code ?? 1,
-              stderr: execError.stderr,
-            });
-            return {
-              success: false,
-              stdout: execError.stdout || '',
-              stderr: execError.stderr || error.message,
-              exitCode: execError.code || 1,
-            };
+        child.stdout.on('data', (chunk: Buffer) => {
+          const text = chunk.toString();
+          totalBytes += Buffer.byteLength(text);
+          if (totalBytes <= MAX_BUFFER) {
+            stdout += text;
+            context?.onChunk?.(text);
           }
-          logger.warn('bash command error', { command: args.command, error: error.message });
-          return {
-            success: false,
-            error: error.message,
-          };
-        }
-        logger.warn('bash command unknown error', { command: args.command });
-        return {
-          success: false,
-          error: 'Unknown error executing command',
-        };
-      }
+        });
+
+        child.stderr.on('data', (chunk: Buffer) => {
+          const text = chunk.toString();
+          totalBytes += Buffer.byteLength(text);
+          if (totalBytes <= MAX_BUFFER) {
+            stderr += text;
+            context?.onChunk?.(text);
+          }
+        });
+
+        child.on('close', (code) => {
+          clearTimeout(timer);
+          logger.debug('bash command finished', {
+            command: args.command,
+            exitCode: code,
+            stdoutLength: stdout.length,
+            hasStderr: stderr.length > 0,
+          });
+          resolve({
+            success: code === 0,
+            stdout,
+            stderr,
+            exitCode: code ?? 0,
+          });
+        });
+
+        child.on('error', (err) => {
+          clearTimeout(timer);
+          logger.warn('bash command error', { command: args.command, error: err.message });
+          resolve({ success: false, error: err.message });
+        });
+      });
     },
   });
 }

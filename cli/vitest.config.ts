@@ -8,14 +8,10 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: [
-        // Test files
-        'tests/**/*.test.ts',
-        // CLI entry point — not unit-testable
-        'src/cli/run-agent.ts',
-        // Re-export barrels have no logic
+        'src/**/*.test.ts',
+        'src/run-agent.ts',
+        'src/render.ts',
         'src/index.ts',
-        'src/agents/index.ts',
-        'src/agents/prompt/index.ts',
       ],
     },
   },

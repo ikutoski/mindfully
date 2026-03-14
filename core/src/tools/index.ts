@@ -6,6 +6,8 @@ export interface ToolContext {
   userId?: string;
   agentId?: string;
   workspaceDir?: string;
+  /** Called with partial output chunks during tool execution (e.g. bash stdout/stderr). */
+  onChunk?: (text: string) => void;
 }
 
 export interface ToolCall {
