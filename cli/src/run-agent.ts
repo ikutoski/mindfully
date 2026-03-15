@@ -82,19 +82,6 @@ async function readInteractiveLine(prefix: string): Promise<string | null> {
   });
 }
 
-// ─── Core run logic (single exchange) ────────────────────────────────────────
-
-interface RunExchangeOpts {
-  prompt: string;
-  messages: BaseMessage[];
-  graph: ReturnType<typeof getModelInstance>;
-  cwd: string;
-}
-
-async function runExchange(opts: RunExchangeOpts) {
-
-}
-
 // ─── `run` subcommand action ──────────────────────────────────────────────────
 
 interface RunOptions {
@@ -104,7 +91,7 @@ interface RunOptions {
 async function runAgent(promptArg: string | undefined, opts: RunOptions): Promise<void> {
   const cwd = process.cwd();
   const tools = createBuiltinTools();
-  const model = getModelInstance(tools);
+  const model = getModelInstance().bindTools(tools);
   logger.info('Agent invoke');
   // 2. Stream the response and collect chunks
   let finalChunk;
@@ -118,17 +105,22 @@ async function runAgent(promptArg: string | undefined, opts: RunOptions): Promis
       new HumanMessage(promptArg ?? await readStdin())
     ]
   }, { streamMode: ['messages'] });
-  for await (const [mode, [chunk, metadata]] of stream) {
+  for await (const [mode, data] of stream) {
     // Skip tool call chunks
-    const toolCallChunks = (chunk as AIMessageChunk).tool_call_chunks ?? [];
-    if (toolCallChunks.length > 0) continue;
-    // Skip anything from the tools node
-    if (metadata?.langgraph_node === "tools") continue;
-    // Skip empty content
-    if (!chunk.content) continue;
-    // console.log('Received chunk:', { mode, chunk, metadata });
-    if (typeof chunk.content === 'string') {
-      process.stdout.write(chunk.content);
+    if (mode === 'messages') {
+      const [chunk, metadata] = data as [BaseMessage, Record<string, any>?];
+      const toolCallChunks = (chunk as AIMessageChunk).tool_call_chunks ?? [];
+      if (toolCallChunks.length > 0) {
+        continue;
+      }
+      // Skip anything from the tools node
+      if (metadata?.langgraph_node === "tools") continue;
+      // Skip empty content
+      if (!chunk.content) continue;
+      // console.log('Received chunk:', { mode, chunk, metadata });
+      if (typeof chunk.content === 'string') {
+        process.stdout.write(chunk.content);
+      }
     }
   }
 }
