@@ -294,7 +294,7 @@ describe('websearch tool', () => {
   it('is registered in createBuiltinTools and builtinToolNames', async () => {
     const { createBuiltinTools, builtinToolNames } = await import('../src/tools/builtin/index.js');
     const tools = createBuiltinTools();
-    expect(tools.find((t) => t.name === 'websearch')).toBeDefined();
-    expect(builtinToolNames).toContain('websearch');
+    expect(tools.find((t) => t.name === 'web_search')).toBeDefined();
+    expect(builtinToolNames).toContain('web_search');
   });
 });

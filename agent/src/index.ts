@@ -23,5 +23,6 @@ export function getModelInstance(): ChatOpenAI {
     streaming: true,
     maxTokens: parseInt(process.env['LLM_MAX_TOKENS'] ?? '4096', 10),
   };
+  logger.debug('Creating OpenAI model instance with config', opts);
   return new ChatOpenAI(opts);
 }

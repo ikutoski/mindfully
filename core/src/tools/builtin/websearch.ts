@@ -178,7 +178,7 @@ export function createWebsearchTool() {
       });
     },
     {
-      name: 'websearch',
+      name: 'web_search',
       description:
         'Search the web using Brave Search and return a list of results with title, URL, and snippet. ' +
         'Optionally fetch the full page content for each result. Requires BRAVE_API_KEY.',

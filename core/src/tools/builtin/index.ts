@@ -39,7 +39,7 @@ export function createBuiltinTools() {
 }
 
 export const builtinToolNames = [
-  'read', 'write', 'edit', 'bash', 'http', 'websearch',
+  'read', 'write', 'edit', 'bash', 'http', 'web_search',
   'glob', 'web_fetch', 'process', 'image',
 ] as const;
 export type BuiltinToolName = typeof builtinToolNames[number];

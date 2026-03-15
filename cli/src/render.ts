@@ -1,14 +1,6 @@
 /**
  * render.ts — all terminal display helpers for the Mindful CLI.
  *
- * Responsibilities:
- *   - Colored header box (session, model, tools, cwd, prompt)
- *   - Tool call panels (tool_start / tool_result)
- *   - Thinking spinner (ora)
- *   - Markdown rendering on completion (marked + marked-terminal)
- *   - Footer line (cost + session hint)
- *   - Sessions list table
- *
  * Color is auto-detected by chalk (respects NO_COLOR / FORCE_COLOR env vars
  * and non-TTY pipes — chalk.level drops to 0 automatically).
  */
@@ -16,7 +8,6 @@
 import chalk from 'chalk';
 import { marked } from 'marked';
 import TerminalRenderer from 'marked-terminal';
-import ora, { type Ora } from 'ora';
 
 // ─── Terminal width ────────────────────────────────────────────────────────────
 
@@ -33,10 +24,6 @@ export function print(msg: string): void {
 
 export function println(msg = ''): void {
   process.stdout.write(msg + '\n');
-}
-
-function pad(s: string, width: number): string {
-  return s.length >= width ? s : s + ' '.repeat(width - s.length);
 }
 
 function truncate(s: string, maxLen: number): string {
@@ -62,133 +49,30 @@ export interface HeaderInfo {
  * └─────────────────────────────────────────────────────────────────────┘
  */
 export function renderHeader(info: HeaderInfo): void {
-  const width = cols();
-  const inner = width - 2; // exclude border chars
+  const meta = [
+    chalk.dim('model') + ' ' + chalk.white(info.model),
+    chalk.dim('tools') + ' ' + chalk.white(String(info.toolCount)),
+    chalk.dim('cwd') + ' ' + chalk.white(truncate(info.cwd, 40)),
+  ].join(chalk.dim('  ·  '));
 
-  const modelTag = chalk.dim('model: ') + chalk.white(info.model);
-  const toolsTag = chalk.dim('tools: ') + chalk.white(String(info.toolCount));
-  const cwdTag = chalk.dim('cwd: ') + chalk.white(truncate(info.cwd, 40));
-  const promptTag = chalk.dim('prompt: ') + chalk.bold.white(truncate(info.prompt, inner - 10));
-
-  // Row 1: "mindful agent" left, model right
-  const appLabel = chalk.bold.cyan('mindful agent');
-  const row1Left = `  ${appLabel}`;
-  const row1LeftLen = 2 + 'mindful agent'.length;
-  const modelStripped = `model: ${info.model}`;
-  const row1Padding = Math.max(0, inner - row1LeftLen - modelStripped.length - 2);
-  const row1 = `│${row1Left}${' '.repeat(row1Padding)}  ${modelTag}  │`;
-
-  // Row 2: tools left, cwd right
-  const row2Left = `  ${toolsTag}`;
-  const row2LeftLen = 2 + `tools: ${info.toolCount}`.length;
-  const cwdStripped = `cwd: ${truncate(info.cwd, 40)}`;
-  const row2Padding = Math.max(0, inner - row2LeftLen - cwdStripped.length - 2);
-  const row2 = `│${row2Left}${' '.repeat(row2Padding)}  ${cwdTag}  │`;
-
-  // Row 3: prompt (full width)
-  const promptStripped = `prompt: ${truncate(info.prompt, inner - 10)}`;
-  const row3Padding = Math.max(0, inner - promptStripped.length - 2);
-  const row3 = `│  ${promptTag}${' '.repeat(row3Padding)}  │`;
-
-  const top = chalk.dim('┌' + '─'.repeat(width - 2) + '┐');
-  const bot = chalk.dim('└' + '─'.repeat(width - 2) + '┘');
-
+  println("----------------------------------------------------------");
+  println(chalk.bold.cyan('mindful') + '  ' + meta);
+  println(chalk.dim('▸') + ' ' + chalk.bold(truncate(info.prompt, (process.stdout.columns ?? 80) - 4)));
   println();
-  println(top);
-  println(row1);
-  println(row2);
-  println(row3);
-  println(bot);
-  println();
-}
-
-// ─── Spinner ──────────────────────────────────────────────────────────────────
-
-/** Start a thinking spinner. Returns the ora instance — call stop() on it. */
-export function spinnerStart(text = 'thinking…'): Ora {
-  return ora({
-    text: chalk.dim(text),
-    color: 'cyan',
-    stream: process.stdout,
-    isSilent: !process.stdout.isTTY,
-  }).start();
 }
 
 // ─── Tool panels ──────────────────────────────────────────────────────────────
 
 /** Format args as a compact key=value string, truncated. */
-function formatArgs(args: Record<string, unknown>, maxLen = 120): string {
+function formatArgs(args: Record<string, unknown>, maxLen = 80): string {
   const parts = Object.entries(args).map(([k, v]) => {
     const val =
       typeof v === 'string'
-        ? truncate(v.replace(/\n/g, '↵'), 60)
-        : truncate(JSON.stringify(v), 60);
-    return `${chalk.dim(k + '=')}${val}`;
+        ? truncate(v.replace(/\n/g, '↵'), 50)
+        : truncate(JSON.stringify(v), 50);
+    return `${chalk.dim(k + '=')}${chalk.white(val)}`;
   });
   return truncate(parts.join('  '), maxLen);
-}
-
-/**
- * Render the opening of a tool call panel.
- *
- *   ╔ bash ────────────────────────────────────────────────────╗
- *     command=ls -la /src
- */
-export function renderToolStart(name: string, args: Record<string, unknown>): void {
-  const w = cols();
-  const label = chalk.bold.cyan(` ${name} `);
-  const labelLen = 1 + name.length + 1; // space + name + space
-  const lineLen = w - 4 - labelLen; // 4 = '╔ ' + ' ─╗'... approximate
-  const topLine = chalk.dim('╔ ') + label + chalk.dim('─'.repeat(Math.max(2, lineLen)) + '╗');
-  println(topLine);
-  if (Object.keys(args).length > 0) {
-    println(chalk.dim('  ') + formatArgs(args));
-  }
-  println(chalk.dim('╟' + '─'.repeat(w - 2) + '╢'));
-}
-
-/**
- * Render the closing of a tool call panel.
- *
- *   ╟──────────────────────────────────────────────────────────╢
- *     ✓ 14 lines  (82ms)   — or —   ✗ command not found
- *   ╚══════════════════════════════════════════════════════════╝
- *
- * When `verboseContent` is provided (verbose mode), its lines are printed
- * between the result line and the closing border (capped at 50 lines).
- */
-export function renderToolResult(
-  name: string,
-  result: unknown,
-  error: string | undefined,
-  elapsedMs: number,
-  verboseContent?: string,
-): void {
-  const w = cols();
-  if (error) {
-    println(chalk.red('  ✗ ') + chalk.dim(truncate(error, w - 6)));
-  } else {
-    const summary = summariseResult(result);
-    println(
-      chalk.green('  ✓ ') +
-        chalk.dim(name) +
-        '  ' +
-        summary +
-        chalk.dim(`  (${elapsedMs}ms)`),
-    );
-  }
-  if (verboseContent) {
-    const lines = verboseContent.split('\n');
-    const display = lines.slice(0, 50);
-    for (const line of display) {
-      println(chalk.dim('  │ ') + line);
-    }
-    if (lines.length > 50) {
-      println(chalk.dim('  │ … (truncated)'));
-    }
-  }
-  println(chalk.dim('╚' + '═'.repeat(w - 2) + '╝'));
-  println();
 }
 
 /** Produce a human-readable one-liner summary of a tool result. */
@@ -201,7 +85,6 @@ function summariseResult(result: unknown): string {
   }
   if (typeof result === 'object') {
     const obj = result as Record<string, unknown>;
-    // Common tool result shapes
     if (typeof obj['content'] === 'string') {
       const lines = String(obj['content']).split('\n').length;
       const bytes = Buffer.byteLength(String(obj['content']), 'utf8');
@@ -215,10 +98,63 @@ function summariseResult(result: unknown): string {
           : '';
       return (ok ? chalk.green('ok') : chalk.red('failed')) + extra;
     }
-    const raw = JSON.stringify(result);
-    return chalk.dim(truncate(raw, 80));
+    return chalk.dim(truncate(JSON.stringify(result), 80));
   }
   return chalk.dim(String(result));
+}
+
+/** Format a completed tool line. */
+export function formatToolDone(
+  name: string,
+  result: unknown,
+  error: string | undefined,
+  elapsedMs: number,
+): string {
+  if (error) {
+    return (
+      chalk.red('✗') +
+      '  ' +
+      chalk.bold(name) +
+      '  ' +
+      chalk.dim(truncate(error, 60)) +
+      chalk.dim(`  (${elapsedMs}ms)`)
+    );
+  }
+  return (
+    chalk.green('✓') +
+    '  ' +
+    chalk.bold(name) +
+    '  ' +
+    summariseResult(result) +
+    chalk.dim(`  (${elapsedMs}ms)`)
+  );
+}
+
+interface ToolEntry {
+  name: string;
+  args: Record<string, unknown>;
+  startTime: number;
+}
+
+/**
+ * Renders tool call results in the terminal.
+ * Prints one ✓/✗ line per tool when it completes.
+ */
+export class ConcurrentToolRenderer {
+  private entries = new Map<string, ToolEntry>();
+
+  addTool(id: string, name: string, args: Record<string, unknown>): void {
+    this.entries.set(id, { name, args, startTime: Date.now() });
+  }
+
+  completeTool(id: string, result: unknown, error: string | undefined): void {
+    const entry = this.entries.get(id);
+    if (!entry) return;
+    const elapsedMs = Date.now() - entry.startTime;
+    process.stdout.write(formatToolDone(entry.name, result, error, elapsedMs) + '\n');
+  }
+
+  stop(): void { /* no-op — kept for call-site compatibility */ }
 }
 
 // ─── Markdown rendering ───────────────────────────────────────────────────────
@@ -226,38 +162,20 @@ function summariseResult(result: unknown): string {
 /**
  * Render a Markdown string to ANSI for the terminal.
  * Falls back to plain text when stdout is not a TTY (e.g. when piped).
- *
- * Note: marked@15 validates renderer property names strictly, so we must NOT
- * use marked.use({ renderer }) at module load time.  Instead, we pass the
- * TerminalRenderer instance directly to marked.parse() on each call, which
- * bypasses the property-name validator entirely.
  */
 export function renderMarkdown(text: string): string {
   if (!process.stdout.isTTY) return text;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rendered = marked.parse(text, { renderer: new TerminalRenderer({ width: cols() }) as any }) as string;
-    // marked-terminal appends \n\n after every top-level block; normalise to
-    // exactly one trailing newline so the footer sits flush below the response.
     return rendered.trimEnd() + '\n';
   } catch {
     return text;
   }
 }
 
-// ─── Footer ───────────────────────────────────────────────────────────────────
-
-export function renderFooter(totalCost: number): void {
-  println();
-  println(
-    chalk.dim('  cost: ') +
-      chalk.white(`$${totalCost.toFixed(6)}`),
-  );
-  println();
-}
-
 // ─── Error display ────────────────────────────────────────────────────────────
 
 export function renderError(message: string): void {
-  println(chalk.red('  ✗ ') + chalk.bold(message));
+  println(chalk.red('✗ ') + chalk.bold(message));
 }
