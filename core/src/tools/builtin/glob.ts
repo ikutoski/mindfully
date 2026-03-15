@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import path from 'node:path';
 import fg from 'fast-glob';
-import { createTool } from '../index.js';
+import { tool, ToolRuntime } from "langchain";
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { createLogger } from '../../logger.js';
-import type { ToolContext } from '../index.js';
 
 const logger = createLogger('core:glob');
 
@@ -17,15 +17,11 @@ const GlobSchema = z.object({
 type GlobInput = z.infer<typeof GlobSchema>;
 
 export function createGlobTool() {
-  return createTool({
-    name: 'glob',
-    description:
-      'Find files matching a glob pattern. Faster and safer than using bash find/ls. ' +
-      'Returns a list of matching file paths relative to the search directory.',
-    inputSchema: GlobSchema,
-    execute: async (input: unknown, context?: ToolContext) => {
-      const args = input as GlobInput;
-      const workspaceDir = context?.workspaceDir || process.cwd();
+  return tool(
+    async (args: GlobInput, config?: RunnableConfig) => {
+      const workspaceDir =
+        (config?.configurable as Record<string, unknown> | undefined)?.['workspaceDir'] as string | undefined
+        ?? process.cwd();
 
       const searchDir = args.cwd
         ? path.resolve(workspaceDir, args.cwd)
@@ -46,18 +42,25 @@ export function createGlobTool() {
 
         logger.debug(`glob matched ${matches.length} entries`, { pattern: args.pattern });
 
-        return {
+        return JSON.stringify({
           success: true,
           matches,
           count: matches.length,
           pattern: args.pattern,
           cwd: searchDir,
-        };
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         logger.warn('glob error', { pattern: args.pattern, error: message });
-        return { success: false, error: message };
+        return JSON.stringify({ success: false, error: message });
       }
     },
-  });
+    {
+      name: 'glob',
+      description:
+        'Find files matching a glob pattern. Faster and safer than using bash find/ls. ' +
+        'Returns a list of matching file paths relative to the search directory.',
+      schema: GlobSchema,
+    },
+  );
 }

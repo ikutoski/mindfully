@@ -4,23 +4,30 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mocks — vi.hoisted ensures variables are available when vi.mock factory runs
 // ---------------------------------------------------------------------------
 
-const { mockTool } = vi.hoisted(() => ({
+const { mockTool, mockToolWithContext } = vi.hoisted(() => ({
   mockTool: {
     name: 'test-tool',
     description: 'A test tool',
-    execute: vi.fn(),
+    invoke: vi.fn(),
+  },
+  mockToolWithContext: {
+    name: 'second-tool',
+    description: 'A second test tool',
+    invoke: vi.fn(),
   },
 }));
+
+const mockCreateBuiltinTools = vi.hoisted(() => vi.fn());
 
 vi.mock('core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('core')>();
   return {
     ...actual,
-    createBuiltinTools: vi.fn().mockReturnValue([mockTool]),
+    createBuiltinTools: mockCreateBuiltinTools,
   };
 });
 
-import { getBuiltinTools, executeTool } from '../../src/tools/index.js';
+import { getBuiltinTools } from '../../src/tools/index.js';
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -29,7 +36,7 @@ import { getBuiltinTools, executeTool } from '../../src/tools/index.js';
 describe('tools/index', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockTool.execute.mockReset();
+    mockCreateBuiltinTools.mockReturnValue([mockTool]);
   });
 
   describe('getBuiltinTools', () => {
@@ -38,59 +45,31 @@ describe('tools/index', () => {
       expect(tools).toHaveLength(1);
       expect(tools[0].name).toBe('test-tool');
     });
-  });
 
-  describe('executeTool', () => {
-    it('executes a known tool and returns its result', async () => {
-      mockTool.execute.mockResolvedValue('tool output');
-
-      const result = await executeTool('test-tool', { arg: 'value' });
-      expect(result).toEqual({ result: 'tool output' });
-      expect(mockTool.execute).toHaveBeenCalledWith({ arg: 'value' }, undefined);
+    it('calls createBuiltinTools with no arguments', () => {
+      getBuiltinTools();
+      expect(mockCreateBuiltinTools).toHaveBeenCalledWith();
     });
 
-    it('returns an error when tool is not found', async () => {
-      const result = await executeTool('unknown-tool', {});
-      expect(result).toEqual({
-        result: null,
-        error: 'Tool "unknown-tool" not found',
-      });
+    it('returns tools that can be invoked via tool.invoke()', async () => {
+      mockTool.invoke.mockResolvedValueOnce(JSON.stringify({ success: true, output: 'hello' }));
+
+      const tools = getBuiltinTools();
+      const result = JSON.parse(await tools[0].invoke({ arg: 'value' }));
+      expect(result).toEqual({ success: true, output: 'hello' });
     });
 
-    it('returns an error when tool execution throws an Error', async () => {
-      mockTool.execute.mockRejectedValue(new Error('execution failed'));
-
-      const result = await executeTool('test-tool', {});
-      expect(result).toEqual({
-        result: null,
-        error: 'execution failed',
-      });
+    it('returns multiple tools when createBuiltinTools returns multiple', () => {
+      mockCreateBuiltinTools.mockReturnValue([mockTool, mockToolWithContext]);
+      const tools = getBuiltinTools();
+      expect(tools).toHaveLength(2);
+      expect(tools.map((t) => t.name)).toEqual(['test-tool', 'second-tool']);
     });
 
-    it('returns a generic error message when tool throws a non-Error', async () => {
-      mockTool.execute.mockRejectedValue('string error');
-
-      const result = await executeTool('test-tool', {});
-      expect(result).toEqual({
-        result: null,
-        error: 'Tool execution failed',
-      });
-    });
-
-    it('forwards ToolContext to tool.execute when provided', async () => {
-      mockTool.execute.mockResolvedValue('ctx output');
-      const context = { workspaceDir: '/my/workspace' };
-
-      const result = await executeTool('test-tool', { arg: 1 }, context);
-      expect(result).toEqual({ result: 'ctx output' });
-      expect(mockTool.execute).toHaveBeenCalledWith({ arg: 1 }, context);
-    });
-
-    it('forwards undefined context when context is omitted', async () => {
-      mockTool.execute.mockResolvedValue('no ctx');
-
-      await executeTool('test-tool', { x: 'y' });
-      expect(mockTool.execute).toHaveBeenCalledWith({ x: 'y' }, undefined);
+    it('returns empty array when createBuiltinTools returns empty list', () => {
+      mockCreateBuiltinTools.mockReturnValue([]);
+      const tools = getBuiltinTools();
+      expect(tools).toHaveLength(0);
     });
   });
 });

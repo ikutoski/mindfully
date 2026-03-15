@@ -2,9 +2,8 @@ import { z } from 'zod';
 import { parseHTML } from 'linkedom';
 import { Readability } from '@mozilla/readability';
 import TurndownService from 'turndown';
-import { createTool } from '../index.js';
+import { tool, ToolRuntime } from "langchain";
 import { createLogger } from '../../logger.js';
-import type { ToolContext } from '../index.js';
 
 const logger = createLogger('core:web-fetch');
 
@@ -46,16 +45,8 @@ const turndown = new TurndownService({
 });
 
 export function createWebFetchTool() {
-  return createTool({
-    name: 'web_fetch',
-    description:
-      'Fetch a URL and return its readable content as clean markdown or plain text. ' +
-      'Strips navigation, ads, and boilerplate using Mozilla Readability. ' +
-      'Use this for reading articles, documentation, or any web page. ' +
-      'Private/internal IP addresses are blocked.',
-    inputSchema: WebFetchSchema,
-    execute: async (input: unknown, _context?: ToolContext) => {
-      const args = input as WebFetchInput;
+  return tool(
+    async (args: WebFetchInput) => {
       const extractMode = args.extractMode ?? 'markdown';
       const maxChars = args.maxChars ?? 20000;
 
@@ -63,11 +54,11 @@ export function createWebFetchTool() {
       try {
         parsedUrl = new URL(args.url);
       } catch {
-        return { success: false, error: `Invalid URL: ${args.url}` };
+        return JSON.stringify({ success: false, error: `Invalid URL: ${args.url}` });
       }
 
       if (isBlockedHost(parsedUrl.hostname)) {
-        return { success: false, error: `Blocked: private/internal address "${parsedUrl.hostname}"` };
+        return JSON.stringify({ success: false, error: `Blocked: private/internal address "${parsedUrl.hostname}"` });
       }
 
       logger.debug('web_fetch', { url: args.url, extractMode, maxChars });
@@ -89,7 +80,7 @@ export function createWebFetchTool() {
         }
 
         if (!response.ok) {
-          return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+          return JSON.stringify({ success: false, error: `HTTP ${response.status}: ${response.statusText}` });
         }
 
         contentType = response.headers.get('content-type') ?? '';
@@ -97,7 +88,7 @@ export function createWebFetchTool() {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         logger.warn('web_fetch fetch error', { url: args.url, error: message });
-        return { success: false, error: message };
+        return JSON.stringify({ success: false, error: message });
       }
 
       let content: string;
@@ -138,13 +129,22 @@ export function createWebFetchTool() {
         truncated,
       });
 
-      return {
+      return JSON.stringify({
         success: true,
         url: args.url,
         content,
         extractMode,
         truncated,
-      };
+      });
     },
-  });
+    {
+      name: 'web_fetch',
+      description:
+        'Fetch a URL and return its readable content as clean markdown or plain text. ' +
+        'Strips navigation, ads, and boilerplate using Mozilla Readability. ' +
+        'Use this for reading articles, documentation, or any web page. ' +
+        'Private/internal IP addresses are blocked.',
+      schema: WebFetchSchema,
+    },
+  );
 }

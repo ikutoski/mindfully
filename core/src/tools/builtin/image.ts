@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { tool, ToolRuntime } from "langchain";
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { createLogger } from '../../logger.js';
-import { createTool, type Tool, type ToolContext } from '../index.js';
 
 const logger = createLogger('core:image');
 
@@ -194,20 +195,14 @@ async function loadImageAsDataUrl(
 // Tool factory
 // ---------------------------------------------------------------------------
 
-export function createImageTool(provider?: VisionProvider): Tool {
+export function createImageTool(provider?: VisionProvider) {
   const visionProvider = provider ?? new DefaultVisionProvider();
 
-  return createTool({
-    name: 'image',
-    description:
-      'Analyze one or more images using a vision model. ' +
-      'Accepts local file paths (absolute or relative to workspaceDir), file:// URLs, ' +
-      'data: URLs (base64-encoded), and remote https:// URLs. ' +
-      'Returns the model\'s textual response to the given prompt.',
-    inputSchema: ImageSchema,
-    execute: async (input: unknown, context?: ToolContext) => {
-      const args = input as ImageInput;
-      const workspaceDir = context?.workspaceDir ?? process.cwd();
+  return tool(
+    async (args: ImageInput, config?: RunnableConfig) => {
+      const workspaceDir =
+        (config?.configurable as Record<string, unknown> | undefined)?.['workspaceDir'] as string | undefined
+        ?? process.cwd();
 
       // Resolve byte limit — legacy maxBytes takes precedence over maxBytesMb
       const maxBytes = args.maxBytes ?? (args.maxBytesMb ?? DEFAULT_MAX_BYTES_MB) * 1024 * 1024;
@@ -231,15 +226,15 @@ export function createImageTool(provider?: VisionProvider): Tool {
       }
 
       if (sources.length === 0) {
-        return { success: false, error: 'At least one image must be provided via "image" or "images"' };
+        return JSON.stringify({ success: false, error: 'At least one image must be provided via "image" or "images"' });
       }
 
       // Enforce maxImages cap
       if (sources.length > maxImages) {
-        return {
+        return JSON.stringify({
           success: false,
           error: `Too many images: ${sources.length} provided but maxImages is ${maxImages}`,
-        };
+        });
       }
 
       logger.debug('image analyze', { sources: sources.length, model, prompt: args.prompt });
@@ -256,7 +251,7 @@ export function createImageTool(provider?: VisionProvider): Tool {
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           logger.warn('image load error', { src, error: message });
-          return { success: false, error: message };
+          return JSON.stringify({ success: false, error: message });
         }
         parts.push({ type: 'image_url', image_url: { url } });
       }
@@ -271,19 +266,28 @@ export function createImageTool(provider?: VisionProvider): Tool {
         try {
           const response = await visionProvider.analyze(messages, candidateModel);
           logger.debug('image analyze complete', { responseLength: response.length, model: candidateModel });
-          return {
+          return JSON.stringify({
             success: true,
             response,
             imagesAnalyzed: sources.length,
             model: candidateModel,
-          };
+          });
         } catch (err) {
           lastError = err instanceof Error ? err.message : String(err);
           logger.warn('image analyze error', { model: candidateModel, error: lastError });
         }
       }
 
-      return { success: false, error: lastError };
+      return JSON.stringify({ success: false, error: lastError });
     },
-  });
+    {
+      name: 'image',
+      description:
+        'Analyze one or more images using a vision model. ' +
+        'Accepts local file paths (absolute or relative to workspaceDir), file:// URLs, ' +
+        'data: URLs (base64-encoded), and remote https:// URLs. ' +
+        'Returns the model\'s textual response to the given prompt.',
+      schema: ImageSchema,
+    },
+  );
 }

@@ -49,17 +49,15 @@ export interface HeaderInfo {
   prompt: string;
   cwd: string;
   toolCount: number;
-  sessionId: string;
   model: string;
-  resuming: boolean;
 }
 
 /**
  * Render a colored box header above the agent response.
  *
  * ┌─────────────────────────────────────────────────────────────────────┐
- * │  mindful agent                         session: a3f1bc92 (new)     │
- * │  model: gpt-5.1-codex · tools: 10      cwd: ~/projects/foo         │
+ * │  mindful agent                         model: gpt-5.1-codex        │
+ * │  tools: 10                             cwd: ~/projects/foo          │
  * │  prompt: Explain the auth flow                                      │
  * └─────────────────────────────────────────────────────────────────────┘
  */
@@ -67,27 +65,22 @@ export function renderHeader(info: HeaderInfo): void {
   const width = cols();
   const inner = width - 2; // exclude border chars
 
-  const sessionTag = info.resuming
-    ? chalk.cyan(`session: ${info.sessionId}`) + chalk.dim(' (resuming)')
-    : chalk.cyan(`session: ${info.sessionId}`) + chalk.dim(' (new)');
-
   const modelTag = chalk.dim('model: ') + chalk.white(info.model);
   const toolsTag = chalk.dim('tools: ') + chalk.white(String(info.toolCount));
   const cwdTag = chalk.dim('cwd: ') + chalk.white(truncate(info.cwd, 40));
   const promptTag = chalk.dim('prompt: ') + chalk.bold.white(truncate(info.prompt, inner - 10));
 
-  // Row 1: "mindful agent" left, session right
+  // Row 1: "mindful agent" left, model right
   const appLabel = chalk.bold.cyan('mindful agent');
   const row1Left = `  ${appLabel}`;
-  // Strip ANSI to measure real length for padding
   const row1LeftLen = 2 + 'mindful agent'.length;
-  const row1RightStripped = `session: ${info.sessionId}${info.resuming ? ' (resuming)' : ' (new)'}`;
-  const row1Padding = Math.max(0, inner - row1LeftLen - row1RightStripped.length - 2);
-  const row1 = `│${row1Left}${' '.repeat(row1Padding)}  ${sessionTag}  │`;
+  const modelStripped = `model: ${info.model}`;
+  const row1Padding = Math.max(0, inner - row1LeftLen - modelStripped.length - 2);
+  const row1 = `│${row1Left}${' '.repeat(row1Padding)}  ${modelTag}  │`;
 
-  // Row 2: model · tools left, cwd right
-  const row2Left = `  ${modelTag} ${chalk.dim('·')} ${toolsTag}`;
-  const row2LeftLen = 2 + `model: ${info.model} · tools: ${info.toolCount}`.length;
+  // Row 2: tools left, cwd right
+  const row2Left = `  ${toolsTag}`;
+  const row2LeftLen = 2 + `tools: ${info.toolCount}`.length;
   const cwdStripped = `cwd: ${truncate(info.cwd, 40)}`;
   const row2Padding = Math.max(0, inner - row2LeftLen - cwdStripped.length - 2);
   const row2 = `│${row2Left}${' '.repeat(row2Padding)}  ${cwdTag}  │`;
@@ -254,50 +247,12 @@ export function renderMarkdown(text: string): string {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
-export function renderFooter(totalCost: number, sessionId: string): void {
+export function renderFooter(totalCost: number): void {
   println();
   println(
     chalk.dim('  cost: ') +
-      chalk.white(`$${totalCost.toFixed(6)}`) +
-      chalk.dim('   session: ') +
-      chalk.cyan(sessionId) +
-      chalk.dim(`  (--session ${sessionId} to resume)`),
+      chalk.white(`$${totalCost.toFixed(6)}`),
   );
-  println();
-}
-
-// ─── Sessions list ────────────────────────────────────────────────────────────
-
-export interface SessionRow {
-  id: string;
-  messageCount: number;
-  updatedAt: string;
-  summary?: string;
-}
-
-export function renderSessionsList(sessions: SessionRow[]): void {
-  if (sessions.length === 0) {
-    println(chalk.dim('  No sessions found.'));
-    return;
-  }
-
-  println();
-  println(
-    chalk.dim('  ' + pad('ID', 10) + pad('MESSAGES', 10) + pad('UPDATED', 26) + 'SUMMARY'),
-  );
-  println(chalk.dim('  ' + '─'.repeat(cols() - 2)));
-
-  for (const s of sessions) {
-    const updated = new Date(s.updatedAt).toLocaleString();
-    const summary = s.summary ? truncate(s.summary, 40) : chalk.dim('—');
-    println(
-      '  ' +
-        chalk.cyan(pad(s.id, 10)) +
-        chalk.dim(pad(String(s.messageCount), 10)) +
-        chalk.dim(pad(updated, 26)) +
-        summary,
-    );
-  }
   println();
 }
 

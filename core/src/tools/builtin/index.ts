@@ -1,4 +1,4 @@
-import { type Tool, createToolRegistry } from '../index.js';
+import { DynamicStructuredTool } from "@langchain/core/tools";
 import { createReadTool } from './read.js';
 import { createWriteTool } from './write.js';
 import { createEditTool } from './edit.js';
@@ -22,10 +22,8 @@ export { createProcessTool } from './process.js';
 export { ProcessRegistry } from './process-registry.js';
 export { createImageTool } from './image.js';
 export type { VisionProvider } from './image.js';
-export { createMemorySearchTool } from './memory-search.js';
-export { createMemoryGetTool } from './memory-get.js';
 
-export function createBuiltinTools(): Tool[] {
+export function createBuiltinTools() {
   return [
     createReadTool(),
     createWriteTool(),
@@ -35,16 +33,9 @@ export function createBuiltinTools(): Tool[] {
     createWebsearchTool(),
     createGlobTool(),
     createWebFetchTool(),
-    createProcessTool(),
+    // createProcessTool(),
     createImageTool(),
   ];
-}
-
-export function createBuiltinRegistry() {
-  const registry = createToolRegistry();
-  const tools = createBuiltinTools();
-  tools.forEach((tool) => registry.register(tool));
-  return registry;
 }
 
 export const builtinToolNames = [
@@ -52,4 +43,3 @@ export const builtinToolNames = [
   'glob', 'web_fetch', 'process', 'image',
 ] as const;
 export type BuiltinToolName = typeof builtinToolNames[number];
-

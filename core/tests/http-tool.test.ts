@@ -75,7 +75,7 @@ describe('http tool', () => {
     ];
 
     it.each(privateUrls)('blocks %s', async (url) => {
-      const result = await tool.execute({ url });
+      const result = JSON.parse(await tool.invoke({ url }));
       expect(result).toMatchObject({ success: false });
       expect((result as { error: string }).error).toMatch(/[Bb]locked/);
       expect(fetch).not.toHaveBeenCalled();
@@ -85,7 +85,7 @@ describe('http tool', () => {
   // --- Invalid URL ---
 
   it('returns error for invalid URL', async () => {
-    const result = await tool.execute({ url: 'not-a-url' });
+    const result = JSON.parse(await tool.invoke({ url: 'not-a-url' }));
     expect(result).toMatchObject({ success: false });
     expect((result as { error: string }).error).toMatch(/[Ii]nvalid URL/);
   });
@@ -97,7 +97,7 @@ describe('http tool', () => {
       makeFetchResponse('{"hello":"world"}', 200, 'application/json'),
     );
 
-    const result = await tool.execute({ url: 'https://api.example.com/data' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://api.example.com/data' })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     expect(result.status).toBe(200);
@@ -112,7 +112,7 @@ describe('http tool', () => {
       makeFetchResponse('hello world', 200, 'text/plain'),
     );
 
-    const result = await tool.execute({ url: 'https://api.example.com/text' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://api.example.com/text' })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     expect(result.body).toBe('hello world');
@@ -126,7 +126,7 @@ describe('http tool', () => {
       makeFetchResponse(SAMPLE_HTML, 200, 'text/html; charset=utf-8'),
     );
 
-    const result = await tool.execute({ url: 'https://example.com/article' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://example.com/article' })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     expect(result.contentType).toBe('text/html; charset=utf-8');
@@ -145,7 +145,7 @@ describe('http tool', () => {
       makeFetchResponse(SAMPLE_HTML, 200, 'text/html'),
     );
 
-    const result = await tool.execute({ url: 'https://example.com/article' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://example.com/article' })) as Record<string, unknown>;
 
     expect(result.body as string).toContain('Article Title');
   });
@@ -155,7 +155,7 @@ describe('http tool', () => {
       makeFetchResponse(MINIMAL_HTML, 200, 'text/html'),
     );
 
-    const result = await tool.execute({ url: 'https://example.com/' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://example.com/' })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     // Either readability extracted it or fallback stripped tags — no raw HTML either way
@@ -168,7 +168,7 @@ describe('http tool', () => {
       makeFetchResponse('', 200, 'text/html'),
     );
 
-    const result = await tool.execute({ url: 'https://example.com/empty' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://example.com/empty' })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     expect(result.status).toBe(200);
@@ -181,7 +181,7 @@ describe('http tool', () => {
       makeFetchResponse('   ', 200, 'text/html'),
     );
 
-    const result = await tool.execute({ url: 'https://example.com/blank' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://example.com/blank' })) as Record<string, unknown>;
 
     // whitespace-only is trimmed to empty by the early-return guard
     expect(result.success).toBe(true);
@@ -195,7 +195,7 @@ describe('http tool', () => {
       makeFetchResponse(noArticle, 200, 'text/html'),
     );
 
-    const result = await tool.execute({ url: 'https://example.com/no-article' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://example.com/no-article' })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     expect(result.body as string).not.toMatch(/<script/i);
@@ -210,7 +210,7 @@ describe('http tool', () => {
       makeFetchResponse('ok', 200, 'application/json'),
     );
 
-    const result = await tool.execute({ url: 'https://api.example.com/' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://api.example.com/' })) as Record<string, unknown>;
 
     expect(result).toHaveProperty('contentType');
     expect(result).not.toHaveProperty('headers');
@@ -221,7 +221,7 @@ describe('http tool', () => {
   it('sends body for POST requests', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeFetchResponse('created', 201, 'text/plain'));
 
-    await tool.execute({
+    await tool.invoke({
       url: 'https://api.example.com/items',
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -243,7 +243,7 @@ describe('http tool', () => {
   it('does not send body for GET requests even if provided', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeFetchResponse('ok', 200, 'text/plain'));
 
-    await tool.execute({
+    await tool.invoke({
       url: 'https://api.example.com/',
       method: 'GET',
       body: 'should-be-ignored',
@@ -258,7 +258,7 @@ describe('http tool', () => {
   it('returns success:true for non-2xx responses (agent decides what to do)', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeFetchResponse('Not Found', 404, 'text/plain'));
 
-    const result = await tool.execute({ url: 'https://api.example.com/missing' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://api.example.com/missing' })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     expect(result.status).toBe(404);
@@ -280,10 +280,10 @@ describe('http tool', () => {
         }),
     );
 
-    const result = await tool.execute({
+    const result = JSON.parse(await tool.invoke({
       url: 'https://api.example.com/slow',
       timeout: 10,
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     expect(result.success).toBe(false);
     expect((result as { error: string }).error).toMatch(/timed out/i);
@@ -294,7 +294,7 @@ describe('http tool', () => {
   it('returns error on network failure', async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
-    const result = await tool.execute({ url: 'https://api.example.com/' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ url: 'https://api.example.com/' })) as Record<string, unknown>;
 
     expect(result.success).toBe(false);
     expect((result as { error: string }).error).toContain('ECONNREFUSED');

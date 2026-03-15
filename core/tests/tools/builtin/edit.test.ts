@@ -33,10 +33,10 @@ describe('edit tool', () => {
       await writeFile(filePath, 'foo foo foo');
 
       const tool = createEditTool();
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { path: filePath, search: 'foo', replace: 'bar' },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean; replacements: number };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean; replacements: number };
 
       expect(result.success).toBe(true);
       expect(result.replacements).toBe(1);
@@ -48,10 +48,10 @@ describe('edit tool', () => {
       await writeFile(filePath, 'abc abc abc');
 
       const tool = createEditTool();
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { path: filePath, search: 'abc', replace: 'xyz', replaceAll: false },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean; replacements: number };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean; replacements: number };
 
       expect(result.success).toBe(true);
       expect(result.replacements).toBe(1);
@@ -65,10 +65,10 @@ describe('edit tool', () => {
       await writeFile(filePath, 'foo foo foo');
 
       const tool = createEditTool();
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { path: filePath, search: 'foo', replace: 'bar', replaceAll: true },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean; replacements: number };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean; replacements: number };
 
       expect(result.success).toBe(true);
       expect(result.replacements).toBe(3);
@@ -80,10 +80,10 @@ describe('edit tool', () => {
       await writeFile(filePath, 'hello world\nhello earth\nhello mars');
 
       const tool = createEditTool();
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { path: filePath, search: 'hello', replace: 'bye', replaceAll: true },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean; replacements: number };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean; replacements: number };
 
       expect(result.success).toBe(true);
       expect(result.replacements).toBe(3);
@@ -95,10 +95,10 @@ describe('edit tool', () => {
       await writeFile(filePath, 'only one needle here');
 
       const tool = createEditTool();
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { path: filePath, search: 'needle', replace: 'pin', replaceAll: true },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean; replacements: number };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean; replacements: number };
 
       expect(result.success).toBe(true);
       expect(result.replacements).toBe(1);
@@ -112,10 +112,10 @@ describe('edit tool', () => {
       await writeFile(filePath, 'some content');
 
       const tool = createEditTool();
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { path: filePath, search: 'NOTPRESENT', replace: 'something' },
-        { workspaceDir: tmpDir },
-      );
+        { configurable: { workspaceDir: tmpDir } },
+      ));
 
       expect(result).toMatchObject({
         success: false,
@@ -129,10 +129,10 @@ describe('edit tool', () => {
   describe('file not found', () => {
     it('returns success: false with an error message', async () => {
       const tool = createEditTool();
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { path: '/does/not/exist/file.txt', search: 'x', replace: 'y' },
-        { workspaceDir: tmpDir },
-      );
+        { configurable: { workspaceDir: tmpDir } },
+      ));
 
       expect(result).toMatchObject({ success: false, error: expect.any(String) });
     });
@@ -144,10 +144,10 @@ describe('edit tool', () => {
       await writeFile(filePath, 'alpha beta alpha');
 
       const tool = createEditTool();
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { path: 'relative.txt', search: 'alpha', replace: 'gamma', replaceAll: true },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean; replacements: number };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean; replacements: number };
 
       expect(result.success).toBe(true);
       expect(result.replacements).toBe(2);

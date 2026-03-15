@@ -6,7 +6,6 @@ import { createGlobTool } from '../../../src/tools/builtin/glob.js';
 
 describe('glob tool', () => {
   let tmpDir: string;
-  const tool = createGlobTool();
 
   beforeEach(async () => {
     tmpDir = await mkdtemp(path.join(tmpdir(), 'glob-test-'));
@@ -36,7 +35,11 @@ describe('glob tool', () => {
   });
 
   it('matches all TypeScript files', async () => {
-    const result = await tool.execute({ pattern: '**/*.ts' }, { workspaceDir: tmpDir });
+    const tool = createGlobTool();
+    const result = JSON.parse(await tool.invoke(
+      { pattern: '**/*.ts' },
+      { configurable: { workspaceDir: tmpDir } },
+    ));
     expect(result).toMatchObject({ success: true });
     const { matches } = result as { success: true; matches: string[]; count: number };
     expect(matches).toHaveLength(3);
@@ -46,32 +49,42 @@ describe('glob tool', () => {
   });
 
   it('matches tsx files', async () => {
-    const result = await tool.execute({ pattern: '**/*.tsx' }, { workspaceDir: tmpDir });
+    const tool = createGlobTool();
+    const result = JSON.parse(await tool.invoke(
+      { pattern: '**/*.tsx' },
+      { configurable: { workspaceDir: tmpDir } },
+    ));
     const { matches } = result as { success: true; matches: string[] };
     expect(matches).toEqual(['src/components/Button.tsx']);
   });
 
   it('matches all ts and tsx files', async () => {
-    const result = await tool.execute({ pattern: '**/*.{ts,tsx}' }, { workspaceDir: tmpDir });
+    const tool = createGlobTool();
+    const result = JSON.parse(await tool.invoke(
+      { pattern: '**/*.{ts,tsx}' },
+      { configurable: { workspaceDir: tmpDir } },
+    ));
     const { matches } = result as { success: true; matches: string[] };
     expect(matches).toHaveLength(4);
   });
 
   it('excludes patterns via ignore', async () => {
-    const result = await tool.execute(
+    const tool = createGlobTool();
+    const result = JSON.parse(await tool.invoke(
       { pattern: '**/*.ts', ignore: ['**/tests/**'] },
-      { workspaceDir: tmpDir },
-    );
+      { configurable: { workspaceDir: tmpDir } },
+    ));
     const { matches } = result as { success: true; matches: string[] };
     expect(matches).not.toContain('tests/index.test.ts');
     expect(matches).toHaveLength(2);
   });
 
   it('respects cwd option', async () => {
-    const result = await tool.execute(
+    const tool = createGlobTool();
+    const result = JSON.parse(await tool.invoke(
       { pattern: '*.ts', cwd: 'src' },
-      { workspaceDir: tmpDir },
-    );
+      { configurable: { workspaceDir: tmpDir } },
+    ));
     const { matches } = result as { success: true; matches: string[] };
     expect(matches).toHaveLength(2);
     expect(matches).toContain('index.ts');
@@ -79,10 +92,11 @@ describe('glob tool', () => {
   });
 
   it('returns absolute paths when absolute: true', async () => {
-    const result = await tool.execute(
+    const tool = createGlobTool();
+    const result = JSON.parse(await tool.invoke(
       { pattern: 'README.md', absolute: true },
-      { workspaceDir: tmpDir },
-    );
+      { configurable: { workspaceDir: tmpDir } },
+    ));
     const { matches } = result as { success: true; matches: string[] };
     expect(matches).toHaveLength(1);
     expect(path.isAbsolute(matches[0])).toBe(true);
@@ -90,19 +104,31 @@ describe('glob tool', () => {
   });
 
   it('returns empty array when nothing matches', async () => {
-    const result = await tool.execute({ pattern: '**/*.go' }, { workspaceDir: tmpDir });
+    const tool = createGlobTool();
+    const result = JSON.parse(await tool.invoke(
+      { pattern: '**/*.go' },
+      { configurable: { workspaceDir: tmpDir } },
+    ));
     expect(result).toMatchObject({ success: true, matches: [], count: 0 });
   });
 
   it('returns count matching matches length', async () => {
-    const result = await tool.execute({ pattern: '**/*.ts' }, { workspaceDir: tmpDir });
+    const tool = createGlobTool();
+    const result = JSON.parse(await tool.invoke(
+      { pattern: '**/*.ts' },
+      { configurable: { workspaceDir: tmpDir } },
+    ));
     const r = result as { success: true; matches: string[]; count: number };
     expect(r.count).toBe(r.matches.length);
   });
 
   it('returns error on empty pattern (fast-glob rejects it)', async () => {
     // fast-glob throws on an empty pattern string
-    const result = await tool.execute({ pattern: '' }, { workspaceDir: tmpDir });
+    const tool = createGlobTool();
+    const result = JSON.parse(await tool.invoke(
+      { pattern: '' },
+      { configurable: { workspaceDir: tmpDir } },
+    ));
     expect(result).toMatchObject({ success: false });
   });
 });

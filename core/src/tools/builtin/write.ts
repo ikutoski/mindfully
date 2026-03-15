@@ -1,8 +1,9 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { z } from 'zod';
+import { tool, ToolRuntime } from "langchain";
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { createLogger } from '../../logger.js';
-import { createTool, type Tool, type ToolContext } from '../index.js';
 
 const logger = createLogger('core:write');
 
@@ -13,15 +14,13 @@ const WriteSchema = z.object({
 
 export type WriteInput = z.infer<typeof WriteSchema>;
 
-export function createWriteTool(): Tool {
-  return createTool({
-    name: 'write',
-    description: 'Write content to a file. Creates the file if it does not exist.',
-    inputSchema: WriteSchema,
-    execute: async (input: unknown, context?: ToolContext) => {
-      const args = input as WriteInput;
+export function createWriteTool() {
+  return tool(
+    async (args: WriteInput, config?: RunnableConfig) => {
       try {
-        const workspaceDir = context?.workspaceDir || process.cwd();
+        const workspaceDir =
+          (config?.configurable as Record<string, unknown> | undefined)?.['workspaceDir'] as string | undefined
+          ?? process.cwd();
         const filePath = path.isAbsolute(args.path)
           ? args.path
           : path.join(workspaceDir, args.path);
@@ -31,19 +30,24 @@ export function createWriteTool(): Tool {
         await fs.writeFile(filePath, args.content, 'utf-8');
         logger.debug('write file succeeded', { path: filePath, bytes: args.content.length });
 
-        return {
+        return JSON.stringify({
           success: true,
           path: filePath,
           bytesWritten: args.content.length,
-        };
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to write file';
         logger.warn('write file failed', { path: args.path, error: message });
-        return {
+        return JSON.stringify({
           success: false,
           error: message,
-        };
+        });
       }
     },
-  });
+    {
+      name: 'write',
+      description: 'Write content to a file. Creates the file if it does not exist.',
+      schema: WriteSchema,
+    },
+  );
 }

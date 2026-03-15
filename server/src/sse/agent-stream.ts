@@ -1,7 +1,13 @@
 import express from 'express';
 import type { Request, Response, Router } from 'express';
-import { AgentRunner, buildSystemPrompt } from 'agent';
-import { ContextManager, type StoredMessage } from 'core';
+import {
+  SystemMessage,
+  HumanMessage,
+  AIMessage,
+  type BaseMessage,
+} from '@langchain/core/messages';
+import { ChatOpenAI } from '@langchain/openai';
+import { createAgent } from 'agent';
 import { verifyIdToken } from '../auth/utils/id-token.js';
 import { agentsRepository } from '../db/repositories/agents.js';
 import {
@@ -9,10 +15,15 @@ import {
   sessionMessagesRepository,
 } from '../db/repositories/agent-sessions.js';
 import { executionsRepository } from '../db/repositories/executions.js';
-import { getBuiltinTools, executeTool } from '../tools/index.js';
+import { getBuiltinTools } from '../tools/index.js';
 import { logger } from '../logger.js';
 
 const router: Router = express.Router();
+
+// ─── Module-level agent singleton ─────────────────────────────────────────────
+
+const _tools = getBuiltinTools();
+const _agentGraph = createAgent(_tools);
 
 // ─── SSE helpers ──────────────────────────────────────────────────────────────
 
@@ -26,54 +37,41 @@ async function generateTitle(
   sessionId: string,
   firstUserMessage: string,
 ): Promise<void> {
-  // Prefer opencode-zen, fall back to OpenAI if available.
-  const zenKey = process.env.OPENCODE_ZEN_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY;
+  let model: ChatOpenAI | undefined;
+  try {
+    if (process.env['OPENCODE_ZEN_API_KEY']) {
+      model = new ChatOpenAI({
+        model: 'glm-5',
+        apiKey: process.env['OPENCODE_ZEN_API_KEY'],
+        configuration: { baseURL: process.env['LLM_BASE_URL'] ?? 'https://opencode.ai/zen/v1' },
+        maxTokens: 200,
+        temperature: 0.5,
+        streaming: false,
+      });
+    } else if (process.env['OPENAI_API_KEY']) {
+      model = new ChatOpenAI({
+        model: 'gpt-4o-mini',
+        apiKey: process.env['OPENAI_API_KEY'],
+        maxTokens: 20,
+        temperature: 0.5,
+      });
+    }
+  } catch {
+    // fall through
+  }
 
-  const apiKey = zenKey || openaiKey;
-
-  if (!apiKey) {
-    // No LLM key available — use truncated first message as title
-    const fallback = firstUserMessage.slice(0, 50);
-    await agentSessionsRepository.update(sessionId, { title: fallback });
+  if (!model) {
+    await agentSessionsRepository.update(sessionId, { title: firstUserMessage.slice(0, 50) });
     return;
   }
 
-  const baseUrl = zenKey
-    ? 'https://opencode.ai/zen/v1'
-    : 'https://api.openai.com/v1';
-
   try {
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Generate a short, descriptive title (max 6 words) for this conversation based on the first user message. Reply with only the title — no quotes, no punctuation.',
-          },
-          { role: 'user', content: firstUserMessage },
-        ],
-        temperature: 0.5,
-        max_tokens: 20,
-      }),
-    });
-
-    if (response.ok) {
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string | null } }>;
-      };
-      const title = data.choices[0]?.message?.content?.trim() || firstUserMessage.slice(0, 50);
-      await agentSessionsRepository.update(sessionId, { title });
-    } else {
-      await agentSessionsRepository.update(sessionId, { title: firstUserMessage.slice(0, 50) });
-    }
+    const response = await model.invoke([
+      { role: 'system', content: 'Generate a short, descriptive title (max 6 words) for this conversation based on the first user message. Reply with only the title — no quotes, no punctuation.' },
+      { role: 'user', content: firstUserMessage },
+    ] as Parameters<typeof model.invoke>[0]);
+    const title = String(response.content).trim() || firstUserMessage.slice(0, 50);
+    await agentSessionsRepository.update(sessionId, { title });
   } catch (err) {
     logger.warn('Failed to generate session title', {
       sessionId,
@@ -158,34 +156,29 @@ router.post('/agent/:agentId/run', async (req: Request, res: Response) => {
       });
     }
 
-    // --- Build context ---
-    const tools = getBuiltinTools();
-    const systemPrompt = await buildSystemPrompt({
-      tools,
-      workspaceDir: process.cwd(),
-      agentSystemPrompt: agent.system_prompt ?? undefined,
-    });
-    const contextManager = new ContextManager({ systemPrompt });
-    const allStoredMessages = (await sessionMessagesRepository.findBySessionId(sessionId, 1000)).items;
-    const sessionRecord = {
-      id: session.id,
-      agentId: session.agent_id,
-      summary: session.summary,
-      summaryUpTo: session.summary_up_to,
-    };
-    const contextMessages = await contextManager.buildMessages(sessionRecord, allStoredMessages.map(toStoredMessage));
+    // --- Build tools and agent ---
+    const workspaceDir = process.cwd();
 
-    // --- Maybe summarise (async, non-blocking) ---
-    contextManager.maybeSummarise(sessionRecord, allStoredMessages.map(toStoredMessage)).then(async (update) => {
-      if (update) {
-        await agentSessionsRepository.update(sessionId, {
-          summary: update.summary,
-          summary_up_to: update.summaryUpTo,
-        });
+    // --- Build conversation history from DB ---
+    const allStoredMessages = (await sessionMessagesRepository.findBySessionId(sessionId, 1000)).items;
+
+    // Build message list from stored history (excluding the current user message
+    // which we just persisted — it will be appended below)
+    const systemPrompt = agent.system_prompt;
+    const inputMessages: BaseMessage[] = [];
+    if (systemPrompt) {
+      inputMessages.push(new SystemMessage(systemPrompt));
+    }
+    for (const m of allStoredMessages) {
+      if (m.role === 'user') {
+        inputMessages.push(new HumanMessage(m.content));
+      } else if (m.role === 'assistant') {
+        inputMessages.push(new AIMessage(m.content));
       }
-    }).catch(() => {
-      // swallow summarisation errors
-    });
+      // tool messages are skipped — they are part of the assistant turn context
+    }
+    // Append current user message
+    inputMessages.push(new HumanMessage(message));
 
     // --- Create execution record ---
     const execution = await executionsRepository.create({
@@ -194,8 +187,7 @@ router.post('/agent/:agentId/run', async (req: Request, res: Response) => {
     });
     await executionsRepository.update(execution.id, { status: 'running' });
 
-    // --- Run agent stream ---
-    const runner = new AgentRunner();
+    // --- Inline stream loop ---
     const newMessages: Array<{
       role: 'assistant' | 'tool';
       content: string;
@@ -204,84 +196,141 @@ router.post('/agent/:agentId/run', async (req: Request, res: Response) => {
       toolName?: string;
     }> = [];
 
-    let totalTokens = 0;
-    let costUsd = 0;
+    // Collect final message state
+    let finalMessages: BaseMessage[] = [];
 
-    for await (const event of runner.stream({
-      input: message,
-      tools,
-      toolExecutor: (name, args) => executeTool(name, args, { workspaceDir: process.cwd() }),
-      history: contextMessages,
-    })) {
-      switch (event.type) {
-        case 'token':
-          sendEvent(res, 'chunk', { content: event.content });
-          break;
-
-        case 'tool_start':
-          sendEvent(res, 'tool', { phase: 'start', name: event.name, args: event.args, id: event.id });
-          break;
-
-        case 'tool_result':
-          sendEvent(res, 'tool', {
-            phase: 'result',
-            name: event.name,
-            result: event.result,
-            error: event.error,
-            id: event.id,
-          });
-          // Collect tool message
-          newMessages.push({
-            role: 'tool',
-            content: event.error ?? JSON.stringify(event.result),
-            toolCallId: event.id,
-            toolName: event.name,
-          });
-          break;
-
-        case 'done': {
-          // Collect assistant messages from done event
-          const assistantMsgs = event.messages.filter(
-            (m) => m.role === 'assistant' || m.role === 'tool',
-          );
-          // Only include messages that are new (not already in context)
-          const contextLen = contextMessages.filter((m) => m.role !== 'system').length;
-          const freshMsgs = assistantMsgs.slice(contextLen);
-          for (const m of freshMsgs) {
-            if (m.role === 'assistant') {
-              newMessages.push({
-                role: 'assistant',
-                content: m.content,
-                ...(m.tool_calls ? { tool_calls: m.tool_calls } : {}),
-              });
+    try {
+      for await (const [mode, chunk] of await _agentGraph.stream(
+        { messages: inputMessages },
+        {
+          streamMode: ['messages', 'tools', 'values'] as const,
+          recursionLimit: 100,
+          configurable: { workspaceDir },
+        },
+      )) {
+        if (mode === 'messages') {
+          const [msgChunk] = chunk as [object, Record<string, unknown>];
+          // Duck-type check: accept any AI message regardless of which module copy created it
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const msgType = typeof (msgChunk as any)._getType === 'function' ? (msgChunk as any)._getType() : null;
+          if (msgType !== 'ai') continue; // skip ToolMessages etc.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const content = (msgChunk as any).content;
+          let text = '';
+          if (typeof content === 'string') {
+            text = content;
+          } else if (Array.isArray(content)) {
+            for (const block of content) {
+              if (
+                typeof block === 'object' && block !== null &&
+                'type' in block && (block as { type: string }).type === 'text' &&
+                'text' in block && typeof (block as { text: string }).text === 'string'
+              ) {
+                text += (block as { text: string }).text;
+              }
             }
           }
-
-          if (event.cost) {
-            totalTokens = event.cost.inputTokens + event.cost.outputTokens;
-            costUsd = event.cost.totalCost;
+          if (text.length > 0) {
+            sendEvent(res, 'chunk', { content: text });
           }
-
-          sendEvent(res, 'done', {
-            sessionId,
-            cost: event.cost
-              ? { inputTokens: event.cost.inputTokens, outputTokens: event.cost.outputTokens, totalCost: event.cost.totalCost }
-              : null,
-          });
-          break;
         }
 
-        case 'error':
-          sendEvent(res, 'error', { message: event.message });
-          await executionsRepository.update(execution.id, {
-            status: 'failed',
-            error: event.message,
-            completed_at: new Date(),
-          });
-          res.end();
-          return;
+        if (mode === 'tools') {
+          const toolEvent = chunk as {
+            event: string;
+            toolCallId?: string;
+            name: string;
+            input?: unknown;
+            output?: unknown;
+            error?: unknown;
+          };
+
+          if (toolEvent.event === 'on_tool_start') {
+            let inputArgs: Record<string, unknown> = {};
+            if (typeof toolEvent.input === 'string') {
+              try { inputArgs = JSON.parse(toolEvent.input) as Record<string, unknown>; } catch { inputArgs = { raw: toolEvent.input }; }
+            } else if (toolEvent.input && typeof toolEvent.input === 'object') {
+              inputArgs = toolEvent.input as Record<string, unknown>;
+            }
+            sendEvent(res, 'tool', {
+              phase: 'start',
+              name: toolEvent.name,
+              args: inputArgs,
+              id: toolEvent.toolCallId,
+            });
+          } else if (toolEvent.event === 'on_tool_end') {
+            const resultContent = String(toolEvent.output);
+            sendEvent(res, 'tool', {
+              phase: 'result',
+              name: toolEvent.name,
+              result: resultContent,
+              error: null,
+              id: toolEvent.toolCallId,
+            });
+            newMessages.push({
+              role: 'tool',
+              content: resultContent,
+              toolCallId: toolEvent.toolCallId,
+              toolName: toolEvent.name,
+            });
+          } else if (toolEvent.event === 'on_tool_error') {
+            sendEvent(res, 'tool', {
+              phase: 'result',
+              name: toolEvent.name,
+              result: null,
+              error: String(toolEvent.error),
+              id: toolEvent.toolCallId,
+            });
+          }
+        }
+
+        if (mode === 'values') {
+          const values = chunk as { messages?: BaseMessage[] };
+          if (values.messages && values.messages.length > 0) {
+            finalMessages = values.messages;
+          }
+        }
+      }
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Agent stream failed';
+      logger.error('SSE agent stream error during stream', { agentId, sessionId, error: errMsg });
+      sendEvent(res, 'error', { message: errMsg });
+      await executionsRepository.update(execution.id, {
+        status: 'failed',
+        error: errMsg,
+        completed_at: new Date(),
+      });
+      res.end();
+      return;
+    }
+
+    // --- Collect new assistant messages from final state ---
+    const inputLen = inputMessages.length;
+    const freshMessages = finalMessages.slice(inputLen);
+    for (const msg of freshMessages) {
+      // Duck-type: check for AI message type regardless of module copy
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const msgType = typeof (msg as any)._getType === 'function' ? (msg as any)._getType() : null;
+      if (msgType === 'ai') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const aiMsg = msg as any;
+        newMessages.push({
+          role: 'assistant',
+          content: typeof aiMsg.content === 'string' ? aiMsg.content : JSON.stringify(aiMsg.content),
+          ...(aiMsg.tool_calls && (aiMsg.tool_calls as unknown[]).length > 0
+            ? {
+                tool_calls: (aiMsg.tool_calls as Array<{ name: string; args: unknown; id?: string }>).map((tc) => ({
+                  name: tc.name,
+                  args: tc.args as Record<string, unknown>,
+                  id: tc.id,
+                })),
+              }
+            : {}),
+        });
       }
     }
+
+    sendEvent(res, 'done', { sessionId });
 
     // --- Persist new assistant/tool messages ---
     let seq = userSeq + 1;
@@ -294,36 +343,12 @@ router.post('/agent/:agentId/run', async (req: Request, res: Response) => {
       tool_call_id: m.toolCallId,
       tool_name: m.toolName,
     }));
-    const persistedMessages = await sessionMessagesRepository.createBatch(messagesToPersist);
-
-    // --- Upsert to Qdrant (fire-and-forget) ---
-    const qdrantMessages: StoredMessage[] = persistedMessages.map((pm) => ({
-      id: pm.id,
-      sessionId: pm.session_id,
-      sequenceNumber: pm.sequence_number,
-      role: pm.role,
-      content: pm.content,
-      toolCalls: pm.tool_calls ?? undefined,
-      toolCallId: pm.tool_call_id ?? undefined,
-      toolName: pm.tool_name ?? undefined,
-      tokenCount: pm.token_count,
-      createdAt: pm.created_at,
-    }));
-    contextManager.upsertMessages(agentId, qdrantMessages).catch(() => {
-      // swallow
-    });
-
-    // Also upsert the user message
-    const userMsg = allStoredMessages[allStoredMessages.length - 1];
-    if (userMsg) {
-      contextManager.upsertMessages(agentId, [toStoredMessage(userMsg)]).catch(() => {});
-    }
+    await sessionMessagesRepository.createBatch(messagesToPersist);
 
     // --- Update execution record ---
     await executionsRepository.update(execution.id, {
       status: 'completed',
       completed_at: new Date(),
-      token_usage: { inputTokens: 0, outputTokens: 0, totalTokens },
     });
 
     // Update session_id on execution
@@ -341,33 +366,5 @@ router.post('/agent/:agentId/run', async (req: Request, res: Response) => {
     res.end();
   }
 });
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
-function toStoredMessage(m: {
-  id: string;
-  session_id: string;
-  sequence_number: number;
-  role: 'user' | 'assistant' | 'tool';
-  content: string;
-  tool_calls: Array<{ name: string; args: Record<string, unknown>; id?: string }> | null;
-  tool_call_id: string | null;
-  tool_name: string | null;
-  token_count: number;
-  created_at: Date;
-}): StoredMessage {
-  return {
-    id: m.id,
-    sessionId: m.session_id,
-    sequenceNumber: m.sequence_number,
-    role: m.role,
-    content: m.content,
-    toolCalls: m.tool_calls ?? undefined,
-    toolCallId: m.tool_call_id ?? undefined,
-    toolName: m.tool_name ?? undefined,
-    tokenCount: m.token_count,
-    createdAt: m.created_at,
-  };
-}
 
 export default router;

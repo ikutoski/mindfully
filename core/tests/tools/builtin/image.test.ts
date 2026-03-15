@@ -31,7 +31,7 @@ describe('image tool', () => {
 
   it('returns error when no image provided', async () => {
     const tool = createImageTool(makeMockProvider());
-    const result = await tool.execute({ prompt: 'describe this' });
+    const result = JSON.parse(await tool.invoke({ prompt: 'describe this' }));
     expect(result).toMatchObject({ success: false, error: expect.stringContaining('image') });
   });
 
@@ -39,10 +39,10 @@ describe('image tool', () => {
     const provider = makeMockProvider('a red square');
     const tool = createImageTool(provider);
 
-    const result = await tool.execute({
+    const result = JSON.parse(await tool.invoke({
       prompt: 'what is this?',
       image: 'https://example.com/red.png',
-    }) as { success: boolean; response: string; imagesAnalyzed: number };
+    })) as { success: boolean; response: string; imagesAnalyzed: number };
 
     expect(result.success).toBe(true);
     expect(result.response).toBe('a red square');
@@ -68,10 +68,10 @@ describe('image tool', () => {
     const provider = makeMockProvider('a tiny image');
     const tool = createImageTool(provider);
 
-    const result = await tool.execute(
+    const result = JSON.parse(await tool.invoke(
       { prompt: 'what is this?', image: imgPath },
-      { workspaceDir: tmpDir },
-    ) as { success: boolean; response: string };
+      { configurable: { workspaceDir: tmpDir } },
+    )) as { success: boolean; response: string };
 
     expect(result.success).toBe(true);
     expect(result.response).toBe('a tiny image');
@@ -90,10 +90,10 @@ describe('image tool', () => {
     const provider = makeMockProvider('a photo');
     const tool = createImageTool(provider);
 
-    const result = await tool.execute(
+    const result = JSON.parse(await tool.invoke(
       { prompt: 'describe', image: 'photo.jpg' },
-      { workspaceDir: tmpDir },
-    );
+      { configurable: { workspaceDir: tmpDir } },
+    ));
 
     expect(result).toMatchObject({ success: true });
     const [messages] = vi.mocked(provider.analyze).mock.calls[0];
@@ -110,10 +110,10 @@ describe('image tool', () => {
     const provider = makeMockProvider();
     const tool = createImageTool(provider);
 
-    const result = await tool.execute(
+    const result = JSON.parse(await tool.invoke(
       { prompt: 'analyze', image: imgPath, maxBytes: 100 },
-      { workspaceDir: tmpDir },
-    );
+      { configurable: { workspaceDir: tmpDir } },
+    ));
 
     expect(result).toMatchObject({ success: false, error: expect.stringContaining('exceeds') });
     expect(provider.analyze).not.toHaveBeenCalled();
@@ -123,10 +123,10 @@ describe('image tool', () => {
     const provider = makeMockProvider();
     const tool = createImageTool(provider);
 
-    const result = await tool.execute(
+    const result = JSON.parse(await tool.invoke(
       { prompt: 'analyze', image: '/no/such/file.png' },
-      { workspaceDir: tmpDir },
-    );
+      { configurable: { workspaceDir: tmpDir } },
+    ));
 
     expect(result).toMatchObject({ success: false });
     expect(provider.analyze).not.toHaveBeenCalled();
@@ -141,10 +141,10 @@ describe('image tool', () => {
     const provider = makeMockProvider('two images');
     const tool = createImageTool(provider);
 
-    const result = await tool.execute(
+    const result = JSON.parse(await tool.invoke(
       { prompt: 'compare these', images: [img1, img2] },
-      { workspaceDir: tmpDir },
-    ) as { success: boolean; imagesAnalyzed: number };
+      { configurable: { workspaceDir: tmpDir } },
+    )) as { success: boolean; imagesAnalyzed: number };
 
     expect(result.success).toBe(true);
     expect(result.imagesAnalyzed).toBe(2);
@@ -163,10 +163,10 @@ describe('image tool', () => {
     const provider = makeMockProvider('combo');
     const tool = createImageTool(provider);
 
-    const result = await tool.execute(
+    const result = JSON.parse(await tool.invoke(
       { prompt: 'analyze', image: img1, images: [img2] },
-      { workspaceDir: tmpDir },
-    ) as { success: boolean; imagesAnalyzed: number };
+      { configurable: { workspaceDir: tmpDir } },
+    )) as { success: boolean; imagesAnalyzed: number };
 
     expect(result.success).toBe(true);
     expect(result.imagesAnalyzed).toBe(2);
@@ -178,10 +178,10 @@ describe('image tool', () => {
     };
     const tool = createImageTool(provider);
 
-    const result = await tool.execute({
+    const result = JSON.parse(await tool.invoke({
       prompt: 'analyze',
       image: 'https://example.com/img.png',
-    });
+    }));
 
     expect(result).toMatchObject({ success: false, error: 'API unreachable' });
   });
@@ -190,7 +190,7 @@ describe('image tool', () => {
     const provider = makeMockProvider('ok');
     const tool = createImageTool(provider);
 
-    await tool.execute({
+    await tool.invoke({
       prompt: 'analyze',
       image: 'https://example.com/x.png',
       model: 'gpt-4-turbo',
@@ -210,10 +210,10 @@ describe('image tool', () => {
       const provider = makeMockProvider('tiny png');
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { prompt: 'what is this?', image: dataUrl },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean; response: string };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean; response: string };
 
       expect(result.success).toBe(true);
       expect(result.response).toBe('tiny png');
@@ -229,10 +229,10 @@ describe('image tool', () => {
       const provider = makeMockProvider();
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { prompt: 'analyze', image: 'data:notvalid' },
-        { workspaceDir: tmpDir },
-      );
+        { configurable: { workspaceDir: tmpDir } },
+      ));
 
       expect(result).toMatchObject({ success: false, error: expect.stringContaining('data URL') });
       expect(provider.analyze).not.toHaveBeenCalled();
@@ -242,10 +242,10 @@ describe('image tool', () => {
       const provider = makeMockProvider();
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { prompt: 'analyze', image: 'data:text/plain;base64,aGVsbG8=' },
-        { workspaceDir: tmpDir },
-      );
+        { configurable: { workspaceDir: tmpDir } },
+      ));
 
       expect(result).toMatchObject({ success: false, error: expect.stringContaining('text/plain') });
       expect(provider.analyze).not.toHaveBeenCalled();
@@ -260,10 +260,10 @@ describe('image tool', () => {
       const provider = makeMockProvider('file url image');
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { prompt: 'describe', image: `file://${imgPath}` },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean };
 
       expect(result.success).toBe(true);
 
@@ -280,7 +280,7 @@ describe('image tool', () => {
       const provider = makeMockProvider();
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         {
           prompt: 'analyze',
           images: [
@@ -290,8 +290,8 @@ describe('image tool', () => {
           ],
           maxImages: 2,
         },
-        { workspaceDir: tmpDir },
-      );
+        { configurable: { workspaceDir: tmpDir } },
+      ));
 
       expect(result).toMatchObject({
         success: false,
@@ -304,14 +304,14 @@ describe('image tool', () => {
       const provider = makeMockProvider('ok');
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         {
           prompt: 'analyze',
           images: ['https://example.com/a.png', 'https://example.com/b.png'],
           maxImages: 2,
         },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean };
 
       expect(result.success).toBe(true);
     });
@@ -323,10 +323,10 @@ describe('image tool', () => {
       const provider = makeMockProvider('deduped');
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { prompt: 'analyze', image: url, images: [url, url] },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean; imagesAnalyzed: number };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean; imagesAnalyzed: number };
 
       expect(result.success).toBe(true);
       // All three references collapse to one
@@ -343,9 +343,9 @@ describe('image tool', () => {
       const provider = makeMockProvider('ordered');
       const tool = createImageTool(provider);
 
-      await tool.execute(
+      await tool.invoke(
         { prompt: 'compare', images: [url1, url2, url1] },
-        { workspaceDir: tmpDir },
+        { configurable: { workspaceDir: tmpDir } },
       );
 
       const [messages] = vi.mocked(provider.analyze).mock.calls[0];
@@ -366,10 +366,10 @@ describe('image tool', () => {
       const provider = makeMockProvider();
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { prompt: 'analyze', image: imgPath, maxBytesMb: 0.5 }, // 0.5 MB = 512 KB
-        { workspaceDir: tmpDir },
-      );
+        { configurable: { workspaceDir: tmpDir } },
+      ));
 
       expect(result).toMatchObject({ success: false, error: expect.stringContaining('exceeds') });
       expect(provider.analyze).not.toHaveBeenCalled();
@@ -382,10 +382,10 @@ describe('image tool', () => {
       const provider = makeMockProvider('small image');
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { prompt: 'analyze', image: imgPath, maxBytesMb: 1 }, // 1 MB limit
-        { workspaceDir: tmpDir },
-      ) as { success: boolean };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean };
 
       expect(result.success).toBe(true);
     });
@@ -398,10 +398,10 @@ describe('image tool', () => {
       const tool = createImageTool(provider);
 
       // maxBytesMb=1 would allow it, but maxBytes=100 should reject
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         { prompt: 'analyze', image: imgPath, maxBytes: 100, maxBytesMb: 1 },
-        { workspaceDir: tmpDir },
-      );
+        { configurable: { workspaceDir: tmpDir } },
+      ));
 
       expect(result).toMatchObject({ success: false, error: expect.stringContaining('exceeds') });
     });
@@ -416,15 +416,15 @@ describe('image tool', () => {
       };
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         {
           prompt: 'analyze',
           image: 'https://example.com/img.png',
           model: 'gpt-4o',
           fallbackModels: ['gpt-4-turbo'],
         },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean; response: string; model: string };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean; response: string; model: string };
 
       expect(result.success).toBe(true);
       expect(result.response).toBe('fallback response');
@@ -439,15 +439,15 @@ describe('image tool', () => {
       };
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         {
           prompt: 'analyze',
           image: 'https://example.com/img.png',
           model: 'gpt-4o',
           fallbackModels: ['gpt-4-turbo'],
         },
-        { workspaceDir: tmpDir },
-      );
+        { configurable: { workspaceDir: tmpDir } },
+      ));
 
       expect(result).toMatchObject({ success: false, error: 'fallback fail' });
     });
@@ -456,14 +456,14 @@ describe('image tool', () => {
       const provider = makeMockProvider('analysis result');
       const tool = createImageTool(provider);
 
-      const result = await tool.execute(
+      const result = JSON.parse(await tool.invoke(
         {
           prompt: 'analyze',
           image: 'https://example.com/img.png',
           model: 'gpt-4o',
         },
-        { workspaceDir: tmpDir },
-      ) as { success: boolean; model: string };
+        { configurable: { workspaceDir: tmpDir } },
+      )) as { success: boolean; model: string };
 
       expect(result.success).toBe(true);
       expect(result.model).toBe('gpt-4o');

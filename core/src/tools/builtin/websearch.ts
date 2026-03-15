@@ -1,6 +1,6 @@
 import { z } from 'zod';
+import { tool, ToolRuntime } from "langchain";
 import { createLogger } from '../../logger.js';
-import { createTool, type Tool } from '../index.js';
 
 const logger = createLogger('core:websearch');
 
@@ -90,20 +90,13 @@ interface BraveSearchResponse {
   };
 }
 
-export function createWebsearchTool(): Tool {
-  return createTool({
-    name: 'websearch',
-    description:
-      'Search the web using Brave Search and return a list of results with title, URL, and snippet. ' +
-      'Optionally fetch the full page content for each result. Requires BRAVE_API_KEY.',
-    inputSchema: WebsearchSchema,
-    execute: async (input: unknown) => {
-      const args = input as WebsearchInput;
-
+export function createWebsearchTool() {
+  return tool(
+    async (args: WebsearchInput) => {
       const apiKey = process.env.BRAVE_API_KEY;
       if (!apiKey) {
         logger.warn('BRAVE_API_KEY is not configured');
-        return { success: false, error: 'BRAVE_API_KEY is not configured' };
+        return JSON.stringify({ success: false, error: 'BRAVE_API_KEY is not configured' });
       }
 
       const timeoutMs = args.timeout ?? 30_000;
@@ -135,24 +128,24 @@ export function createWebsearchTool(): Tool {
         if (!response.ok) {
           const errorBody = await response.text().catch(() => '');
           logger.warn('Brave Search API error', { status: response.status, body: errorBody });
-          return {
+          return JSON.stringify({
             success: false,
             error: `Brave Search API returned ${response.status} ${response.statusText}${errorBody ? ': ' + errorBody : ''}`,
-          };
+          });
         }
 
         braveData = (await response.json()) as BraveSearchResponse;
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
           logger.warn('Search request timed out', { query: args.query, timeoutMs });
-          return { success: false, error: `Search request timed out after ${timeoutMs}ms` };
+          return JSON.stringify({ success: false, error: `Search request timed out after ${timeoutMs}ms` });
         }
         const message = err instanceof Error ? err.message : String(err);
         logger.warn('Search request failed', { query: args.query, error: message });
-        return {
+        return JSON.stringify({
           success: false,
           error: message,
-        };
+        });
       } finally {
         clearTimeout(timer);
       }
@@ -178,11 +171,18 @@ export function createWebsearchTool(): Tool {
         );
       }
 
-      return {
+      return JSON.stringify({
         success: true,
         query: args.query,
         results,
-      };
+      });
     },
-  });
+    {
+      name: 'websearch',
+      description:
+        'Search the web using Brave Search and return a list of results with title, URL, and snippet. ' +
+        'Optionally fetch the full page content for each result. Requires BRAVE_API_KEY.',
+      schema: WebsearchSchema,
+    },
+  );
 }

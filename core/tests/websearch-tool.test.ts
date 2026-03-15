@@ -60,7 +60,7 @@ describe('websearch tool', () => {
   it('returns error when BRAVE_API_KEY is not set', async () => {
     delete process.env.BRAVE_API_KEY;
 
-    const result = await tool.execute({ query: 'hello world' });
+    const result = JSON.parse(await tool.invoke({ query: 'hello world' }));
 
     expect(result).toMatchObject({ success: false });
     expect((result as { error: string }).error).toMatch(/BRAVE_API_KEY/);
@@ -74,7 +74,7 @@ describe('websearch tool', () => {
       makeJsonFetchResponse(makeBraveResponse(SAMPLE_RESULTS)),
     );
 
-    const result = await tool.execute({ query: 'TypeScript tips' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ query: 'TypeScript tips' })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     expect(result.query).toBe('TypeScript tips');
@@ -92,7 +92,7 @@ describe('websearch tool', () => {
       makeJsonFetchResponse(makeBraveResponse([])),
     );
 
-    await tool.execute({ query: 'cats', count: 5, country: 'gb' });
+    await tool.invoke({ query: 'cats', count: 5, country: 'gb' });
 
     expect(fetch).toHaveBeenCalledOnce();
     const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
@@ -108,7 +108,7 @@ describe('websearch tool', () => {
       makeJsonFetchResponse(makeBraveResponse([])),
     );
 
-    await tool.execute({ query: 'test' });
+    await tool.invoke({ query: 'test' });
 
     const callInit = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
     expect((callInit.headers as Record<string, string>)['X-Subscription-Token']).toBe('test-brave-api-key');
@@ -121,7 +121,7 @@ describe('websearch tool', () => {
       makeJsonFetchResponse(makeBraveResponse([])),
     );
 
-    await tool.execute({ query: 'defaults' });
+    await tool.invoke({ query: 'defaults' });
 
     const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
     expect(calledUrl).toContain('count=10');
@@ -134,7 +134,7 @@ describe('websearch tool', () => {
       makeJsonFetchResponse(makeBraveResponse([])),
     );
 
-    await tool.execute({ query: 'no country' });
+    await tool.invoke({ query: 'no country' });
 
     const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
     expect(calledUrl).not.toContain('country=');
@@ -147,7 +147,7 @@ describe('websearch tool', () => {
       makeJsonFetchResponse(makeBraveResponse([])),
     );
 
-    const result = await tool.execute({ query: 'obscure query' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ query: 'obscure query' })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     expect(result.results).toEqual([]);
@@ -164,7 +164,7 @@ describe('websearch tool', () => {
       // Third call: page 2
       .mockResolvedValueOnce(makeTextFetchResponse('<html><body><p>Page two content</p></body></html>'));
 
-    const result = await tool.execute({ query: 'fetch me', fetchContent: true }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ query: 'fetch me', fetchContent: true })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     const results = result.results as Array<Record<string, unknown>>;
@@ -181,7 +181,7 @@ describe('websearch tool', () => {
       .mockRejectedValueOnce(new Error('ECONNREFUSED')) // page 1 fails
       .mockResolvedValueOnce(makeTextFetchResponse('<p>Page two ok</p>')); // page 2 ok
 
-    const result = await tool.execute({ query: 'partial fail', fetchContent: true }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ query: 'partial fail', fetchContent: true })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     const results = result.results as Array<Record<string, unknown>>;
@@ -196,7 +196,7 @@ describe('websearch tool', () => {
       makeJsonFetchResponse(makeBraveResponse(SAMPLE_RESULTS)),
     );
 
-    const result = await tool.execute({ query: 'no fetch' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ query: 'no fetch' })) as Record<string, unknown>;
 
     expect(result.success).toBe(true);
     const results = result.results as Array<Record<string, unknown>>;
@@ -215,7 +215,7 @@ describe('websearch tool', () => {
         ),
       );
 
-    const result = await tool.execute({ query: 'html strip', fetchContent: true }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ query: 'html strip', fetchContent: true })) as Record<string, unknown>;
 
     const content = (result.results as Array<Record<string, unknown>>)[0].content as string;
     expect(content).not.toContain('<');
@@ -233,7 +233,7 @@ describe('websearch tool', () => {
       .mockResolvedValueOnce(makeJsonFetchResponse(makeBraveResponse([SAMPLE_RESULTS[0]])))
       .mockResolvedValueOnce(makeTextFetchResponse(longText));
 
-    const result = await tool.execute({ query: 'long page', fetchContent: true }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ query: 'long page', fetchContent: true })) as Record<string, unknown>;
 
     const content = (result.results as Array<Record<string, unknown>>)[0].content as string;
     // 2000 chars + ellipsis
@@ -256,10 +256,10 @@ describe('websearch tool', () => {
         }),
     );
 
-    const result = await tool.execute({
+    const result = JSON.parse(await tool.invoke({
       query: 'slow search',
       timeout: 10,
-    }) as Record<string, unknown>;
+    })) as Record<string, unknown>;
 
     expect(result.success).toBe(false);
     expect((result as { error: string }).error).toMatch(/timed out/i);
@@ -272,7 +272,7 @@ describe('websearch tool', () => {
       makeTextFetchResponse('Unauthorized', 401),
     );
 
-    const result = await tool.execute({ query: 'unauthorized' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ query: 'unauthorized' })) as Record<string, unknown>;
 
     expect(result.success).toBe(false);
     expect((result as { error: string }).error).toMatch(/401/);
@@ -283,7 +283,7 @@ describe('websearch tool', () => {
   it('returns error on network failure during search', async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error('DNS lookup failed'));
 
-    const result = await tool.execute({ query: 'network error' }) as Record<string, unknown>;
+    const result = JSON.parse(await tool.invoke({ query: 'network error' })) as Record<string, unknown>;
 
     expect(result.success).toBe(false);
     expect((result as { error: string }).error).toContain('DNS lookup failed');

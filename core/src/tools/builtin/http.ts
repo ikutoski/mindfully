@@ -1,8 +1,8 @@
 import { Readability } from '@mozilla/readability';
 import { parseHTML } from 'linkedom';
 import { z } from 'zod';
+import { tool, ToolRuntime } from "langchain";
 import { createLogger } from '../../logger.js';
-import { createTool, type Tool } from '../index.js';
 
 const logger = createLogger('core:http');
 
@@ -108,30 +108,24 @@ const HttpSchema = z.object({
 
 export type HttpInput = z.infer<typeof HttpSchema>;
 
-export function createHttpTool(): Tool {
-  return createTool({
-    name: 'http',
-    description:
-      'Make an HTTP request to a URL. Returns status code and response body. HTML responses are automatically converted to clean readable text using Mozilla Readability (boilerplate, ads, and navigation stripped). JSON and plain text are returned as-is. Private/internal IP addresses are blocked.',
-    inputSchema: HttpSchema,
-    execute: async (input: unknown) => {
-      const args = input as HttpInput;
-
+export function createHttpTool() {
+  return tool(
+    async (args: HttpInput) => {
       // Validate & parse URL
       let parsed: URL;
       try {
         parsed = new URL(args.url);
       } catch {
-        return { success: false, error: `Invalid URL: ${args.url}` };
+        return JSON.stringify({ success: false, error: `Invalid URL: ${args.url}` });
       }
 
       // Block private IPs / localhost
       if (isPrivateHost(parsed.hostname)) {
         logger.warn('Blocked request to private/internal address', { hostname: parsed.hostname });
-        return {
+        return JSON.stringify({
           success: false,
           error: `Blocked: requests to private/internal addresses are not allowed (${parsed.hostname})`,
-        };
+        });
       }
 
       const timeoutMs = args.timeout ?? 30_000;
@@ -173,24 +167,30 @@ export function createHttpTool(): Tool {
           body = rawBody;
         }
 
-        return {
+        return JSON.stringify({
           success: true,
           status: response.status,
           statusText: response.statusText,
           contentType,
           body,
-        };
+        });
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
           logger.warn('HTTP request timed out', { url: args.url, timeoutMs });
-          return { success: false, error: `Request timed out after ${timeoutMs}ms` };
+          return JSON.stringify({ success: false, error: `Request timed out after ${timeoutMs}ms` });
         }
         const message = err instanceof Error ? err.message : String(err);
         logger.warn('HTTP request failed', { url: args.url, error: message });
-        return { success: false, error: message };
+        return JSON.stringify({ success: false, error: message });
       } finally {
         clearTimeout(timer);
       }
     },
-  });
+    {
+      name: 'http',
+      description:
+        'Make an HTTP request to a URL. Returns status code and response body. HTML responses are automatically converted to clean readable text using Mozilla Readability (boilerplate, ads, and navigation stripped). JSON and plain text are returned as-is. Private/internal IP addresses are blocked.',
+      schema: HttpSchema,
+    },
+  );
 }

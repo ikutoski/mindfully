@@ -1,7 +1,8 @@
 import { spawn } from 'child_process';
 import { z } from 'zod';
+import { tool, ToolRuntime } from "langchain";
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { createLogger } from '../../logger.js';
-import { createTool, type Tool, type ToolContext } from '../index.js';
 import { ProcessRegistry } from './process-registry.js';
 
 const logger = createLogger('core:bash');
@@ -21,17 +22,12 @@ const BashSchema = z.object({
 
 export type BashInput = z.infer<typeof BashSchema>;
 
-export function createBashTool(): Tool {
-  return createTool({
-    name: 'bash',
-    description:
-      'Execute a shell command in the workspace. ' +
-      'Set background:true to start a long-running process; the process tool can then ' +
-      'poll its output or kill it.',
-    inputSchema: BashSchema,
-    execute: async (input: unknown, context?: ToolContext) => {
-      const args = input as BashInput;
-      const workspaceDir = context?.workspaceDir || process.cwd();
+export function createBashTool() {
+  return tool(
+    async (args: BashInput, config?: RunnableConfig) => {
+      const workspaceDir =
+        (config?.configurable as Record<string, unknown> | undefined)?.['workspaceDir'] as string | undefined
+        ?? process.cwd();
       const cwd = args.cwd || workspaceDir;
       const timeout = args.timeout || 60000;
 
@@ -42,18 +38,18 @@ export function createBashTool(): Tool {
         logger.debug('bash background', { command: args.command, cwd });
         const registry = ProcessRegistry.getInstance();
         const entry = registry.spawn(args.command, cwd);
-        return {
+        return JSON.stringify({
           success: true,
           background: true,
           id: entry.id,
           pid: entry.pid,
           message: `Process started in background. Use the process tool with id "${entry.id}" to poll output or kill it.`,
-        };
+        });
       }
 
       logger.debug('bash command', { command: args.command, cwd });
 
-      return new Promise((resolve) => {
+      return new Promise<string>((resolve) => {
         let stdout = '';
         let stderr = '';
         let totalBytes = 0;
@@ -74,7 +70,6 @@ export function createBashTool(): Tool {
           totalBytes += Buffer.byteLength(text);
           if (totalBytes <= MAX_BUFFER) {
             stdout += text;
-            context?.onChunk?.(text);
           }
         });
 
@@ -83,7 +78,6 @@ export function createBashTool(): Tool {
           totalBytes += Buffer.byteLength(text);
           if (totalBytes <= MAX_BUFFER) {
             stderr += text;
-            context?.onChunk?.(text);
           }
         });
 
@@ -95,20 +89,28 @@ export function createBashTool(): Tool {
             stdoutLength: stdout.length,
             hasStderr: stderr.length > 0,
           });
-          resolve({
+          resolve(JSON.stringify({
             success: code === 0,
             stdout,
             stderr,
             exitCode: code ?? 0,
-          });
+          }));
         });
 
         child.on('error', (err) => {
           clearTimeout(timer);
           logger.warn('bash command error', { command: args.command, error: err.message });
-          resolve({ success: false, error: err.message });
+          resolve(JSON.stringify({ success: false, error: err.message }));
         });
       });
     },
-  });
+    {
+      name: 'bash',
+      description:
+        'Execute a shell command in the workspace. ' +
+        'Set background:true to start a long-running process; the process tool can then ' +
+        'poll its output or kill it.',
+      schema: BashSchema,
+    },
+  );
 }

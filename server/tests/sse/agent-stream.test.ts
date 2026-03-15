@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { AIMessageChunk, HumanMessage, AIMessage, ToolMessage } from '@langchain/core/messages';
 
 // ---------------------------------------------------------------------------
 // Mocks — vi.hoisted ensures these are initialised before vi.mock factories run
@@ -12,35 +13,37 @@ const {
   mockSessionsRepo,
   mockMessagesRepo,
   mockExecutionsRepo,
-  mockBuildMessages,
-  mockMaybeSummarise,
-  mockUpsertMessages,
   mockStream,
-} = vi.hoisted(() => ({
-  mockVerifyIdToken: vi.fn(),
-  mockAgentsRepo: { findById: vi.fn() },
-  mockSessionsRepo: {
-    create: vi.fn(),
-    findById: vi.fn(),
-    update: vi.fn(),
-  },
-  mockMessagesRepo: {
-    count: vi.fn(),
-    nextSequenceNumber: vi.fn(),
-    create: vi.fn(),
-    findBySessionId: vi.fn(),
-    createBatch: vi.fn(),
-  },
-  mockExecutionsRepo: {
-    create: vi.fn(),
-    update: vi.fn(),
-    linkSession: vi.fn(),
-  },
-  mockBuildMessages: vi.fn(),
-  mockMaybeSummarise: vi.fn(),
-  mockUpsertMessages: vi.fn(),
-  mockStream: vi.fn(),
-}));
+  mockCreateAgent,
+} = vi.hoisted(() => {
+  const mockStream = vi.fn();
+  const mockCreateAgent = vi.fn().mockReturnValue({
+    stream: mockStream,
+  });
+  return {
+    mockVerifyIdToken: vi.fn(),
+    mockAgentsRepo: { findById: vi.fn() },
+    mockSessionsRepo: {
+      create: vi.fn(),
+      findById: vi.fn(),
+      update: vi.fn(),
+    },
+    mockMessagesRepo: {
+      count: vi.fn(),
+      nextSequenceNumber: vi.fn(),
+      create: vi.fn(),
+      findBySessionId: vi.fn(),
+      createBatch: vi.fn(),
+    },
+    mockExecutionsRepo: {
+      create: vi.fn(),
+      update: vi.fn(),
+      linkSession: vi.fn(),
+    },
+    mockStream,
+    mockCreateAgent,
+  };
+});
 
 vi.mock('../../src/db/index.js', () => ({ db: { query: vi.fn() } }));
 vi.mock('../../src/logger.js', () => ({
@@ -59,26 +62,9 @@ vi.mock('../../src/db/repositories/agent-sessions.js', () => ({
 vi.mock('../../src/db/repositories/executions.js', () => ({
   executionsRepository: mockExecutionsRepo,
 }));
-vi.mock('core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('core')>();
-  return {
-    ...actual,
-    ContextManager: vi.fn().mockImplementation(() => ({
-      buildMessages: mockBuildMessages,
-      maybeSummarise: mockMaybeSummarise,
-      upsertMessages: mockUpsertMessages,
-    })),
-  };
-});
-vi.mock('agent', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('agent')>();
-  return {
-    ...actual,
-    AgentRunner: vi.fn().mockImplementation(() => ({
-      stream: mockStream,
-    })),
-  };
-});
+vi.mock('agent', () => ({
+  createAgent: mockCreateAgent,
+}));
 vi.mock('../../src/tools/index.js', () => ({
   getBuiltinTools: vi.fn().mockReturnValue([]),
   executeTool: vi.fn(),
@@ -104,7 +90,7 @@ function makeApp() {
 }
 
 function makeAgent() {
-  return { id: agentId, user_id: userId, name: 'Test Agent' };
+  return { id: agentId, user_id: userId, name: 'Test Agent', system_prompt: null };
 }
 
 function makeSession() {
@@ -140,6 +126,28 @@ function parseSseEvents(body: string): Array<{ event: string; data: unknown }> {
   return events;
 }
 
+// ─── Fake stream helpers ──────────────────────────────────────────────────────
+
+/** Produce a token chunk as [mode, payload] using a real AIMessageChunk */
+function tokenChunk(content: string): ['messages', [AIMessageChunk, Record<string, unknown>]] {
+  return ['messages', [new AIMessageChunk({ content }), {}]];
+}
+
+/** Produce a values chunk with messages as [mode, payload] */
+function valuesChunk(messages: unknown[]): ['values', { messages: unknown[] }] {
+  return ['values', { messages }];
+}
+
+/** Produce a tool start chunk */
+function toolStartChunk(name: string, input: unknown, id?: string): ['tools', { event: string; name: string; input: unknown; toolCallId?: string }] {
+  return ['tools', { event: 'on_tool_start', name, input, toolCallId: id }];
+}
+
+/** Produce a tool end chunk */
+function toolEndChunk(name: string, output: unknown, id?: string): ['tools', { event: string; name: string; output: unknown; toolCallId?: string }] {
+  return ['tools', { event: 'on_tool_end', name, output, toolCallId: id }];
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -160,9 +168,6 @@ describe('POST /api/agent/:agentId/run', () => {
     mockExecutionsRepo.create.mockResolvedValue(makeExecution());
     mockExecutionsRepo.update.mockResolvedValue(undefined);
     mockExecutionsRepo.linkSession.mockResolvedValue(undefined);
-    mockBuildMessages.mockResolvedValue([]);
-    mockMaybeSummarise.mockResolvedValue(null);
-    mockUpsertMessages.mockResolvedValue(undefined);
   });
 
   it('returns 401 when no Authorization header', async () => {
@@ -211,11 +216,11 @@ describe('POST /api/agent/:agentId/run', () => {
 
   it('streams token and done events for successful run', async () => {
     async function* fakeStream() {
-      yield { type: 'token', content: 'Hello ' };
-      yield { type: 'token', content: 'world' };
-      yield { type: 'done', messages: [{ role: 'user', content: 'hi' }, { role: 'assistant', content: 'Hello world' }], cost: undefined };
+      yield tokenChunk('Hello ');
+      yield tokenChunk('world');
+      yield valuesChunk([new HumanMessage('hi'), new AIMessage('Hello world')]);
     }
-    mockStream.mockReturnValueOnce(fakeStream());
+    mockStream.mockReturnValueOnce(Promise.resolve(fakeStream()));
 
     const app = makeApp();
     const res = await request(app)
@@ -235,11 +240,12 @@ describe('POST /api/agent/:agentId/run', () => {
     expect(doneData.sessionId).toBe(sessionId);
   });
 
-  it('streams error event when agent stream yields error', async () => {
+  it('streams error event when agent stream throws', async () => {
     async function* fakeErrorStream() {
-      yield { type: 'error', message: 'Something went wrong' };
+      yield tokenChunk('start');
+      throw new Error('Something went wrong');
     }
-    mockStream.mockReturnValueOnce(fakeErrorStream());
+    mockStream.mockReturnValueOnce(Promise.resolve(fakeErrorStream()));
 
     const app = makeApp();
     const res = await request(app)
@@ -256,11 +262,11 @@ describe('POST /api/agent/:agentId/run', () => {
 
   it('streams tool events during tool execution', async () => {
     async function* fakeToolStream() {
-      yield { type: 'tool_start', name: 'search', args: { q: 'test' }, id: 'tc-1' };
-      yield { type: 'tool_result', name: 'search', result: 'results', id: 'tc-1' };
-      yield { type: 'done', messages: [], cost: undefined };
+      yield toolStartChunk('search', { q: 'test' }, 'tc-1');
+      yield toolEndChunk('search', 'results', 'tc-1');
+      yield valuesChunk([]);
     }
-    mockStream.mockReturnValueOnce(fakeToolStream());
+    mockStream.mockReturnValueOnce(Promise.resolve(fakeToolStream()));
 
     const app = makeApp();
     const res = await request(app)
@@ -282,9 +288,9 @@ describe('POST /api/agent/:agentId/run', () => {
     mockMessagesRepo.count.mockResolvedValueOnce(2); // not first message
 
     async function* fakeStream() {
-      yield { type: 'done', messages: [], cost: undefined };
+      yield valuesChunk([]);
     }
-    mockStream.mockReturnValueOnce(fakeStream());
+    mockStream.mockReturnValueOnce(Promise.resolve(fakeStream()));
 
     const app = makeApp();
     const res = await request(app)
@@ -299,16 +305,11 @@ describe('POST /api/agent/:agentId/run', () => {
     expect(mockSessionsRepo.create).not.toHaveBeenCalled();
   });
 
-  it('includes cost info in done event when cost is present', async () => {
-    const cost = { inputTokens: 10, outputTokens: 20, totalCost: 0.001, totalTokens: 30 };
+  it('done event contains sessionId', async () => {
     async function* fakeStream() {
-      yield {
-        type: 'done',
-        messages: [{ role: 'assistant', content: 'reply', tool_calls: null }],
-        cost,
-      };
+      yield valuesChunk([]);
     }
-    mockStream.mockReturnValueOnce(fakeStream());
+    mockStream.mockReturnValueOnce(Promise.resolve(fakeStream()));
 
     const app = makeApp();
     const res = await request(app)
@@ -319,17 +320,12 @@ describe('POST /api/agent/:agentId/run', () => {
     const events = parseSseEvents(res.text);
     const doneEvents = events.filter((e) => e.event === 'done');
     expect(doneEvents).toHaveLength(1);
-    const doneData = doneEvents[0].data as { cost: { inputTokens: number } | null };
-    expect(doneData.cost?.inputTokens).toBe(10);
+    const doneData = doneEvents[0].data as { sessionId: string };
+    expect(doneData.sessionId).toBe(sessionId);
   });
 
   it('streams error event when the route handler throws unexpectedly', async () => {
     mockExecutionsRepo.create.mockRejectedValueOnce(new Error('DB down'));
-
-    async function* fakeStream() {
-      yield { type: 'done', messages: [], cost: undefined };
-    }
-    mockStream.mockReturnValueOnce(fakeStream());
 
     const app = makeApp();
     const res = await request(app)
@@ -353,5 +349,52 @@ describe('POST /api/agent/:agentId/run', () => {
       .send({ message: 'hello' });
 
     expect(res.status).toBe(404);
+  });
+
+  it('does not emit chunk event for ToolMessage in messages stream', async () => {
+    async function* fakeStream() {
+      // A ToolMessage emitted via messages mode — should be silently skipped
+      yield ['messages', [new ToolMessage({ content: 'tool output', tool_call_id: 'tc-1' }), {}]] as ['messages', [ToolMessage, Record<string, unknown>]];
+      yield valuesChunk([]);
+    }
+    mockStream.mockReturnValueOnce(Promise.resolve(fakeStream()));
+
+    const app = makeApp();
+    const res = await request(app)
+      .post(`/api/agent/${agentId}/run`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ message: 'hi' });
+
+    const events = parseSseEvents(res.text);
+    const chunkEvents = events.filter((e) => e.event === 'chunk');
+    expect(chunkEvents).toHaveLength(0);
+    // done event should still fire
+    expect(events.filter((e) => e.event === 'done')).toHaveLength(1);
+  });
+
+  it('persists AIMessageChunk from finalMessages using isAIMessage check', async () => {
+    // LangGraph stores AIMessageChunk (not AIMessage) in graph state due to streaming.
+    // The persistence check must use isAIMessage() which returns true for both.
+    // inputMessages = [HumanMessage('hi')] (inputLen=1); finalMessages must include those
+    // plus the new AI chunk so that freshMessages = finalMessages.slice(1) = [aiChunk].
+    const aiChunk = new AIMessageChunk({ content: 'streamed reply' });
+    async function* fakeStream() {
+      yield tokenChunk('streamed reply');
+      yield valuesChunk([new HumanMessage('hi'), aiChunk]);
+    }
+    mockStream.mockReturnValueOnce(Promise.resolve(fakeStream()));
+
+    const app = makeApp();
+    await request(app)
+      .post(`/api/agent/${agentId}/run`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ message: 'hi' });
+
+    // createBatch should have been called with at least one assistant message
+    expect(mockMessagesRepo.createBatch).toHaveBeenCalledOnce();
+    const [batch] = mockMessagesRepo.createBatch.mock.calls[0] as [Array<{ role: string; content: string }>];
+    const assistantMsgs = batch.filter((m) => m.role === 'assistant');
+    expect(assistantMsgs.length).toBeGreaterThanOrEqual(1);
+    expect(assistantMsgs[0].content).toBe('streamed reply');
   });
 });

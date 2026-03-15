@@ -78,8 +78,6 @@ describe('ProcessRegistry', () => {
 });
 
 describe('process tool', () => {
-  const tool = createProcessTool();
-
   beforeEach(() => {
     ProcessRegistry.reset();
   });
@@ -89,7 +87,8 @@ describe('process tool', () => {
   });
 
   it('list returns empty array when no processes', async () => {
-    const result = await tool.execute({ action: 'list' }) as {
+    const tool = createProcessTool();
+    const result = JSON.parse(await tool.invoke({ action: 'list' })) as {
       success: boolean; processes: unknown[];
     };
     expect(result.success).toBe(true);
@@ -97,25 +96,29 @@ describe('process tool', () => {
   });
 
   it('poll returns error for unknown id', async () => {
-    const result = await tool.execute({ action: 'poll', id: '99' });
+    const tool = createProcessTool();
+    const result = JSON.parse(await tool.invoke({ action: 'poll', id: '99' }));
     expect(result).toMatchObject({ success: false, error: expect.stringContaining('not found') });
   });
 
   it('kill returns error for unknown id', async () => {
-    const result = await tool.execute({ action: 'kill', id: '99' });
+    const tool = createProcessTool();
+    const result = JSON.parse(await tool.invoke({ action: 'kill', id: '99' }));
     expect(result).toMatchObject({ success: false, error: expect.stringContaining('not found') });
   });
 
   it('write returns error for unknown id', async () => {
-    const result = await tool.execute({ action: 'write', id: '99', input: 'hi' });
+    const tool = createProcessTool();
+    const result = JSON.parse(await tool.invoke({ action: 'write', id: '99', input: 'hi' }));
     expect(result).toMatchObject({ success: false, error: expect.stringContaining('not found') });
   });
 
   it('poll returns process info after spawn', async () => {
+    const tool = createProcessTool();
     const registry = ProcessRegistry.getInstance();
     registry.spawn('sleep 60', process.cwd());
 
-    const result = await tool.execute({ action: 'poll', id: '1' }) as {
+    const result = JSON.parse(await tool.invoke({ action: 'poll', id: '1' })) as {
       success: boolean; id: string; status: string;
     };
     expect(result.success).toBe(true);
@@ -124,10 +127,11 @@ describe('process tool', () => {
   });
 
   it('kill stops a running process', async () => {
+    const tool = createProcessTool();
     const registry = ProcessRegistry.getInstance();
     registry.spawn('sleep 60', process.cwd());
 
-    const result = await tool.execute({ action: 'kill', id: '1' }) as {
+    const result = JSON.parse(await tool.invoke({ action: 'kill', id: '1' })) as {
       success: boolean; killed: boolean;
     };
     expect(result.success).toBe(true);
@@ -135,11 +139,12 @@ describe('process tool', () => {
   });
 
   it('list shows spawned processes', async () => {
+    const tool = createProcessTool();
     const registry = ProcessRegistry.getInstance();
     registry.spawn('sleep 60', process.cwd());
     registry.spawn('sleep 60', process.cwd());
 
-    const result = await tool.execute({ action: 'list' }) as {
+    const result = JSON.parse(await tool.invoke({ action: 'list' })) as {
       success: boolean; processes: Array<{ id: string }>;
     };
     expect(result.success).toBe(true);
@@ -148,8 +153,6 @@ describe('process tool', () => {
 });
 
 describe('bash tool background mode', () => {
-  const tool = createBashTool();
-
   beforeEach(() => {
     ProcessRegistry.reset();
   });
@@ -159,7 +162,11 @@ describe('bash tool background mode', () => {
   });
 
   it('returns a process id when background:true', async () => {
-    const result = await tool.execute({ command: 'sleep 60', background: true }) as {
+    const tool = createBashTool();
+    const result = JSON.parse(await tool.invoke(
+      { command: 'sleep 60', background: true },
+      { configurable: { workspaceDir: process.cwd() } },
+    )) as {
       success: boolean; background: boolean; id: string; pid: number;
     };
     expect(result.success).toBe(true);
@@ -169,7 +176,11 @@ describe('bash tool background mode', () => {
   });
 
   it('foreground commands still work after background mode is added', async () => {
-    const result = await tool.execute({ command: 'echo hello' }) as {
+    const tool = createBashTool();
+    const result = JSON.parse(await tool.invoke(
+      { command: 'echo hello' },
+      { configurable: { workspaceDir: process.cwd() } },
+    )) as {
       success: boolean; stdout: string;
     };
     expect(result.success).toBe(true);

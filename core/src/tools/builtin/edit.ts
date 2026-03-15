@@ -1,8 +1,9 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { z } from 'zod';
+import { tool, ToolRuntime } from "langchain";
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { createLogger } from '../../logger.js';
-import { createTool, type Tool, type ToolContext } from '../index.js';
 
 const logger = createLogger('core:edit');
 
@@ -18,17 +19,13 @@ const EditSchema = z.object({
 
 export type EditInput = z.infer<typeof EditSchema>;
 
-export function createEditTool(): Tool {
-  return createTool({
-    name: 'edit',
-    description:
-      'Edit a file by replacing specific text with new text. ' +
-      'By default replaces only the first occurrence; set replaceAll to true to replace every occurrence.',
-    inputSchema: EditSchema,
-    execute: async (input: unknown, context?: ToolContext) => {
-      const args = input as EditInput;
+export function createEditTool() {
+  return tool(
+    async (args: EditInput, config?: RunnableConfig) => {
       try {
-        const workspaceDir = context?.workspaceDir || process.cwd();
+        const workspaceDir =
+          (config?.configurable as Record<string, unknown> | undefined)?.['workspaceDir'] as string | undefined
+          ?? process.cwd();
         const filePath = path.isAbsolute(args.path)
           ? args.path
           : path.join(workspaceDir, args.path);
@@ -38,10 +35,10 @@ export function createEditTool(): Tool {
 
         if (!content.includes(args.search)) {
           logger.warn('edit file: search text not found', { path: filePath });
-          return {
+          return JSON.stringify({
             success: false,
             error: `Search text not found in file: ${args.search}`,
-          };
+          });
         }
 
         let replacements: number;
@@ -58,19 +55,26 @@ export function createEditTool(): Tool {
         await fs.writeFile(filePath, content, 'utf-8');
         logger.debug('edit file succeeded', { path: filePath, replacements });
 
-        return {
+        return JSON.stringify({
           success: true,
           path: filePath,
           replacements,
-        };
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to edit file';
         logger.warn('edit file failed', { path: args.path, error: message });
-        return {
+        return JSON.stringify({
           success: false,
           error: message,
-        };
+        });
       }
     },
-  });
+    {
+      name: 'edit',
+      description:
+        'Edit a file by replacing specific text with new text. ' +
+        'By default replaces only the first occurrence; set replaceAll to true to replace every occurrence.',
+      schema: EditSchema,
+    },
+  );
 }

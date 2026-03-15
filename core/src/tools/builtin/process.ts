@@ -1,6 +1,6 @@
 import { z } from 'zod';
+import { tool, ToolRuntime } from "langchain";
 import { createLogger } from '../../logger.js';
-import { createTool, type Tool, type ToolContext } from '../index.js';
 import { ProcessRegistry } from './process-registry.js';
 
 const logger = createLogger('core:process');
@@ -32,16 +32,9 @@ function trimOutput(s: string, maxChars = 8192): string {
   return `...(truncated)...\n${s.slice(-maxChars)}`;
 }
 
-export function createProcessTool(): Tool {
-  return createTool({
-    name: 'process',
-    description:
-      'Manage long-running background processes started by the bash tool (background:true). ' +
-      'Actions: list — show all processes; poll — get current stdout/stderr/status; ' +
-      'write — send input to stdin; kill — terminate a process.',
-    inputSchema: ProcessSchema,
-    execute: async (input: unknown, _context?: ToolContext) => {
-      const args = input as ProcessInput;
+export function createProcessTool() {
+  return tool(
+    async (args: ProcessInput) => {
       const registry = ProcessRegistry.getInstance();
 
       switch (args.action) {
@@ -55,16 +48,16 @@ export function createProcessTool(): Tool {
             startedAt: e.startedAt.toISOString(),
           }));
           logger.debug('process list', { count: entries.length });
-          return { success: true, processes: entries };
+          return JSON.stringify({ success: true, processes: entries });
         }
 
         case 'poll': {
           const entry = registry.get(args.id);
           if (!entry) {
-            return { success: false, error: `Process "${args.id}" not found` };
+            return JSON.stringify({ success: false, error: `Process "${args.id}" not found` });
           }
           logger.debug('process poll', { id: args.id, status: entry.status });
-          return {
+          return JSON.stringify({
             success: true,
             id: entry.id,
             command: entry.command,
@@ -74,7 +67,7 @@ export function createProcessTool(): Tool {
             startedAt: entry.startedAt.toISOString(),
             stdout: trimOutput(entry.stdout),
             stderr: trimOutput(entry.stderr),
-          };
+          });
         }
 
         case 'write': {
@@ -82,15 +75,15 @@ export function createProcessTool(): Tool {
           if (!ok) {
             const entry = registry.get(args.id);
             if (!entry) {
-              return { success: false, error: `Process "${args.id}" not found` };
+              return JSON.stringify({ success: false, error: `Process "${args.id}" not found` });
             }
-            return {
+            return JSON.stringify({
               success: false,
               error: `Process "${args.id}" is not running (status: ${entry.status})`,
-            };
+            });
           }
           logger.debug('process write', { id: args.id, bytes: args.input.length });
-          return { success: true, id: args.id, written: args.input.length };
+          return JSON.stringify({ success: true, id: args.id, written: args.input.length });
         }
 
         case 'kill': {
@@ -98,17 +91,25 @@ export function createProcessTool(): Tool {
           if (!ok) {
             const entry = registry.get(args.id);
             if (!entry) {
-              return { success: false, error: `Process "${args.id}" not found` };
+              return JSON.stringify({ success: false, error: `Process "${args.id}" not found` });
             }
-            return {
+            return JSON.stringify({
               success: false,
               error: `Process "${args.id}" is already stopped (status: ${entry.status})`,
-            };
+            });
           }
           logger.debug('process kill', { id: args.id });
-          return { success: true, id: args.id, killed: true };
+          return JSON.stringify({ success: true, id: args.id, killed: true });
         }
       }
     },
-  });
+    {
+      name: 'process',
+      description:
+        'Manage long-running background processes started by the bash tool (background:true). ' +
+        'Actions: list — show all processes; poll — get current stdout/stderr/status; ' +
+        'write — send input to stdin; kill — terminate a process.',
+      schema: ProcessSchema,
+    },
+  );
 }
