@@ -33,7 +33,7 @@ export function createBuiltinTools() {
     createWebsearchTool(),
     createGlobTool(),
     createWebFetchTool(),
-    // createProcessTool(),
+    createProcessTool(),
     createImageTool(),
   ];
 }

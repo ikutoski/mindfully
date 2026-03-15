@@ -185,7 +185,6 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
             toolRenderer.completeTool(id, m.status === 'error' ? undefined : m.content, error);
           }
           toolRenderer.stop();
-          println();
           toolSectionStarted = false;
         }
         continue;

@@ -1,28 +1,23 @@
 import { z } from 'zod';
-import { tool, ToolRuntime } from "langchain";
+import { tool } from "langchain";
 import { createLogger } from '../../logger.js';
 import { ProcessRegistry } from './process-registry.js';
 
 const logger = createLogger('core:process');
 
-const ProcessSchema = z.discriminatedUnion('action', [
-  z.object({
-    action: z.literal('list'),
-  }),
-  z.object({
-    action: z.literal('poll'),
-    id: z.string().describe('Process ID returned by bash background:true'),
-  }),
-  z.object({
-    action: z.literal('write'),
-    id: z.string().describe('Process ID'),
-    input: z.string().describe('Text to send to the process stdin'),
-  }),
-  z.object({
-    action: z.literal('kill'),
-    id: z.string().describe('Process ID to terminate'),
-  }),
-]);
+const ProcessSchema = z.object({
+  action: z
+    .enum(['list', 'poll', 'write', 'kill'])
+    .describe('Action to perform: list all processes, poll output, write to stdin, or kill'),
+  id: z
+    .string()
+    .optional()
+    .describe('Process ID (required for poll, write, kill)'),
+  input: z
+    .string()
+    .optional()
+    .describe('Text to send to the process stdin (required for write)'),
+});
 
 type ProcessInput = z.infer<typeof ProcessSchema>;
 
@@ -52,6 +47,7 @@ export function createProcessTool() {
         }
 
         case 'poll': {
+          if (!args.id) return JSON.stringify({ success: false, error: 'id is required for poll' });
           const entry = registry.get(args.id);
           if (!entry) {
             return JSON.stringify({ success: false, error: `Process "${args.id}" not found` });
@@ -71,6 +67,8 @@ export function createProcessTool() {
         }
 
         case 'write': {
+          if (!args.id) return JSON.stringify({ success: false, error: 'id is required for write' });
+          if (!args.input) return JSON.stringify({ success: false, error: 'input is required for write' });
           const ok = registry.write(args.id, args.input);
           if (!ok) {
             const entry = registry.get(args.id);
@@ -87,6 +85,7 @@ export function createProcessTool() {
         }
 
         case 'kill': {
+          if (!args.id) return JSON.stringify({ success: false, error: 'id is required for kill' });
           const ok = registry.kill(args.id);
           if (!ok) {
             const entry = registry.get(args.id);

@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 import { z } from 'zod';
-import { tool, ToolRuntime } from "langchain";
+import { tool } from "langchain";
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { createLogger } from '../../logger.js';
 import { ProcessRegistry } from './process-registry.js';

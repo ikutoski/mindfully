@@ -79,9 +79,7 @@ function formatArgs(args: Record<string, unknown>, maxLen = 80): string {
 function summariseResult(result: unknown): string {
   if (result === null || result === undefined) return chalk.dim('(empty)');
   if (typeof result === 'string') {
-    const lines = result.split('\n').length;
-    const bytes = Buffer.byteLength(result, 'utf8');
-    return chalk.white(`${lines} line${lines !== 1 ? 's' : ''}`) + chalk.dim(`  ${bytes}b`);
+    return chalk.white( `result ${result.length} character${result.length !== 1 ? 's' : ''}` + chalk.dim(`  ${truncate(result, 80)}`));
   }
   if (typeof result === 'object') {
     const obj = result as Record<string, unknown>;
