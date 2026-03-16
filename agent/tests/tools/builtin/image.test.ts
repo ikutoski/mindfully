@@ -446,7 +446,6 @@ describe('image tool', () => {
           model: 'gpt-4o',
           fallbackModels: ['gpt-4-turbo'],
         },
-        { configurable: { workspaceDir: tmpDir } },
       ));
 
       expect(result).toMatchObject({ success: false, error: 'fallback fail' });

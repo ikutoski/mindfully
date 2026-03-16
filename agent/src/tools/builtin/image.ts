@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { tool, ToolRuntime } from "langchain";
+import { tool } from "langchain";
 import type { RunnableConfig } from '@langchain/core/runnables';
-import { createLogger } from '../../logger.js';
+import { createLogger } from 'core';
 
 const logger = createLogger('core:image');
 

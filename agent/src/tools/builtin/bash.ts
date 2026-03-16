@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import { z } from 'zod';
 import { tool } from "langchain";
 import type { RunnableConfig } from '@langchain/core/runnables';
-import { createLogger } from '../../logger.js';
+import { createLogger } from 'core';
 import { ProcessRegistry } from './process-registry.js';
 
 const logger = createLogger('core:bash');

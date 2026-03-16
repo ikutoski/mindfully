@@ -1,4 +1,4 @@
-import { createBuiltinTools, type StructuredToolInterface } from 'core';
+import { createBuiltinTools, type StructuredToolInterface } from 'agent';
 
 /**
  * Returns the builtin tool list for the server-side agent runner.

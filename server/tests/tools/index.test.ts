@@ -19,8 +19,8 @@ const { mockTool, mockToolWithContext } = vi.hoisted(() => ({
 
 const mockCreateBuiltinTools = vi.hoisted(() => vi.fn());
 
-vi.mock('core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('core')>();
+vi.mock('agent', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('agent')>();
   return {
     ...actual,
     createBuiltinTools: mockCreateBuiltinTools,

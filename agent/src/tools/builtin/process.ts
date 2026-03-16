@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { tool } from "langchain";
-import { createLogger } from '../../logger.js';
+import { createLogger } from 'core';
 import { ProcessRegistry } from './process-registry.js';
 
 const logger = createLogger('core:process');

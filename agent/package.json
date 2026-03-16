@@ -22,13 +22,18 @@
     "@langchain/deepseek": "^1.0.17",
     "@langchain/langgraph": "^1.2.2",
     "@langchain/openai": "^1.2.13",
+    "@mozilla/readability": "^0.5.0",
     "core": "workspace:*",
+    "fast-glob": "^3.3.0",
     "langchain": "^1.2.32",
+    "linkedom": "^0.18.12",
+    "turndown": "^7.2.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
+    "@types/turndown": "^5.0.5",
     "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.0.0",
     "globals": "^17.4.0",

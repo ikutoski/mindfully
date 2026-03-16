@@ -1,9 +1,9 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { z } from 'zod';
-import { tool, ToolRuntime } from "langchain";
+import { tool } from "langchain";
 import type { RunnableConfig } from '@langchain/core/runnables';
-import { createLogger } from '../../logger.js';
+import { createLogger } from 'core';
 
 const logger = createLogger('core:write');
 

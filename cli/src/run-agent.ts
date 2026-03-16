@@ -31,8 +31,7 @@ import type { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from 'commander';
 import { SqliteSaver } from '@langchain/langgraph-checkpoint-sqlite';
 import { createAgent } from 'langchain';
-import { getModelInstance } from 'agent';
-import { createBuiltinTools } from 'core';
+import { getModelInstance, createBuiltinTools } from 'agent';
 import { createLogger } from 'core';
 import {
   print,
@@ -237,7 +236,7 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
 
 async function runAgent(
   promptArg: string | undefined,
-  opts: { interactive: boolean; session: string | undefined },
+  opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined },
 ): Promise<void> {
   const cwd = process.cwd();
   const tools = createBuiltinTools();
@@ -271,7 +270,10 @@ async function runAgent(
   }
 
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const systemText = await readFile(resolve(__dirname, 'SYSTEM.md'), 'utf-8');
+  const systemPromptPath = opts.systemPrompt
+    ? resolve(process.cwd(), opts.systemPrompt)
+    : resolve(__dirname, 'SYSTEM.md');
+  const systemText = await readFile(systemPromptPath, 'utf-8');
   const prompt = promptArg ?? (await readStdin());
 
   if (!prompt) { renderError('No prompt provided.'); process.exit(1); }
@@ -291,7 +293,7 @@ async function runAgent(
 
   if (opts.interactive) {
     while (true) {
-      println();
+      println("\x1b[2m(Press Ctrl+C to exit)\x1b[0m");
       const next = await readInteractiveLine('\x1b[36m>\x1b[0m ');
       if (!next) break;
       renderHeader({ ...headerBase, prompt: next, contextTokens: await getContextTokens() });
@@ -312,8 +314,9 @@ const program = new Command()
   .version('0.1.5')
   .option('-i, --interactive', 'Stay in a REPL loop', false)
   .option('-s, --session <name>', 'Session name / thread ID (omit for a fresh random ID)')
+  .option('-p, --system-prompt <file>', 'Path to system prompt file (default: built-in SYSTEM.md)')
   .argument('[prompt]', 'Prompt to run (reads stdin if omitted)')
-  .action(async (promptArg: string | undefined, opts: { interactive: boolean; session: string | undefined }) => {
+  .action(async (promptArg: string | undefined, opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined }) => {
     await runAgent(promptArg, opts);
   });
 

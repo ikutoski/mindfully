@@ -1,6 +1,9 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { createLogger } from 'core';
 
+export * from './tools/index.js';
+export * from './tools/builtin/index.js';
+
 const logger = createLogger('agent');
 
 // ─── Public factory ───────────────────────────────────────────────────────────

@@ -1,8 +1,8 @@
 import { Readability } from '@mozilla/readability';
 import { parseHTML } from 'linkedom';
 import { z } from 'zod';
-import { tool, ToolRuntime } from "langchain";
-import { createLogger } from '../../logger.js';
+import { tool } from "langchain";
+import { createLogger } from 'core';
 
 const logger = createLogger('core:http');
 

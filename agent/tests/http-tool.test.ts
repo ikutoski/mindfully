@@ -203,8 +203,6 @@ describe('http tool', () => {
 
   // --- Response shape ---
 
-  // --- Response shape ---
-
   it('returns contentType field (not headers object)', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       makeFetchResponse('ok', 200, 'application/json'),
