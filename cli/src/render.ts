@@ -37,6 +37,14 @@ export interface HeaderInfo {
   cwd: string;
   toolCount: number;
   model: string;
+  session: string;
+  contextTokens: number;
+}
+
+/** Format a token count as an abbreviated string: 0 → "0", 1234 → "1.2k". */
+function formatTokens(n: number): string {
+  if (n === 0) return '0';
+  return (n / 1000).toFixed(1) + 'k';
 }
 
 /**
@@ -52,6 +60,8 @@ export function renderHeader(info: HeaderInfo): void {
   const meta = [
     chalk.dim('model') + ' ' + chalk.white(info.model),
     chalk.dim('tools') + ' ' + chalk.white(String(info.toolCount)),
+    chalk.dim('session') + ' ' + chalk.white(info.session),
+    chalk.dim('ctx') + ' ' + chalk.white(formatTokens(info.contextTokens)),
     chalk.dim('cwd') + ' ' + chalk.white(truncate(info.cwd, 40)),
   ].join(chalk.dim('  ·  '));
 
@@ -172,8 +182,20 @@ export function renderMarkdown(text: string): string {
   }
 }
 
+// ─── Compaction notice ────────────────────────────────────────────────────────
+
+export function renderCompacted(removedCount: number): void {
+  println(chalk.dim(`⟳ context compacted — ${removedCount} message${removedCount !== 1 ? 's' : ''} summarised`));
+}
+
 // ─── Error display ────────────────────────────────────────────────────────────
 
 export function renderError(message: string): void {
   println(chalk.red('✗ ') + chalk.bold(message));
+}
+
+// ─── Session exit ─────────────────────────────────────────────────────────────
+
+export function renderSessionExit(threadId: string): void {
+  println(chalk.dim('session  ') + chalk.white(threadId));
 }

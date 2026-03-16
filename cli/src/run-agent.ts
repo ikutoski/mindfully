@@ -4,21 +4,32 @@
  *
  * Usage:
  *   pnpm --filter cli run-agent "Your prompt here"
- *   pnpm --filter cli run-agent -i "Your prompt"   # interactive REPL
+ *   pnpm --filter cli run-agent -i "Your prompt"         # interactive REPL
+ *   pnpm --filter cli run-agent -s myproject "prompt"    # named session
  *
  * Env vars are loaded from ../.env via --env-file flag in the npm script.
+ *
+ * Session and thread are the same concept. Pass -s <name> to use a fixed name
+ * (and resume the same checkpoint DB). Omit -s for a fresh random 8-char hex ID.
+ * The ID is printed at start and end. DB: ~/.mindful/sessions/<id>.db
+ * Token compaction fires automatically when context grows too large.
  */
 
 import * as readline from 'node:readline';
 import { readFile } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, join } from 'node:path';
+import { homedir } from 'node:os';
 import {
   HumanMessage,
   SystemMessage,
   type BaseMessage,
 } from '@langchain/core/messages';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from 'commander';
+import { SqliteSaver } from '@langchain/langgraph-checkpoint-sqlite';
 import { createAgent } from 'langchain';
 import { getModelInstance } from 'agent';
 import { createBuiltinTools } from 'core';
@@ -29,8 +40,11 @@ import {
   renderHeader,
   renderMarkdown,
   renderError,
+  renderCompacted,
+  renderSessionExit,
   ConcurrentToolRenderer,
 } from './render.js';
+import { maybeCompact, estimateTokens } from './compactor.js';
 
 const logger = createLogger('cli');
 
@@ -38,6 +52,11 @@ const logger = createLogger('cli');
 
 function getModelName(): string {
   return process.env['LLM_MODEL'] ?? 'unknown';
+}
+
+/** Directory where per-session SQLite databases are stored. */
+function defaultSessionsDir(): string {
+  return join(homedir(), '.mindful', 'sessions');
 }
 
 function extractText(content: unknown): string {
@@ -113,22 +132,24 @@ export interface RunExchangeOpts {
   messages: BaseMessage[];
   graph: ReturnType<typeof createAgent>;
   cwd: string;
+  config?: RunnableConfig;
 }
 
 /**
  * Run one prompt→response exchange.
  *
+ * When a config with thread_id is provided, the graph's checkpointer handles
+ * session persistence automatically. Messages passed in are prepended before
+ * the new HumanMessage — on resumed sessions pass an empty array.
+ *
  * Streaming:
- *   - `messages` mode: stream AI tokens directly; tool call chunks (empty
- *     content, tool_calls populated) trigger addTool on the renderer.
+ *   - `messages` mode: stream AI tokens directly; tool call chunks trigger
+ *     addTool on the renderer.
  *   - `updates.tools` fires → completeTool for each result.
  *   - `values` mode: captures the complete final state.
- *
- * A blank line is printed before the first tool call in each exchange.
- * After streaming, raw text is replaced in-place with rendered Markdown.
  */
 export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]> {
-  const { prompt, messages, graph, cwd } = opts;
+  const { prompt, messages, graph, cwd, config } = opts;
 
   const inputMessages: BaseMessage[] = [...messages, new HumanMessage(prompt)];
   const toolRenderer = new ConcurrentToolRenderer();
@@ -137,17 +158,20 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
   let responseText = '';
   let toolSectionStarted = false;
 
-  try {
-    const stream = graph.stream(
-      { messages: inputMessages },
-      {
-        streamMode: ['messages', 'updates', 'values'] as const,
-        recursionLimit: 100,
-        configurable: { workspaceDir: cwd },
-      },
-    );
+  const streamConfig = {
+    streamMode: ['messages', 'updates', 'values'] as ('messages' | 'updates' | 'values')[],
+    recursionLimit: 100,
+    configurable: {
+      workspaceDir: cwd,
+      ...(config?.configurable ?? {}),
+    },
+  };
 
-    for await (const [mode, chunk] of await stream) {
+  try {
+    const stream = graph.stream({ messages: inputMessages }, streamConfig);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for await (const item of await stream) {
+      const [mode, chunk] = item as [string, unknown];
       // ── messages: stream AI tokens + detect tool calls ───────────────────
       if (mode === 'messages') {
         const [msgChunk, metadata] = chunk as [unknown, Record<string, unknown>];
@@ -185,6 +209,7 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
             toolRenderer.completeTool(id, m.status === 'error' ? undefined : m.content, error);
           }
           toolRenderer.stop();
+          println();
           toolSectionStarted = false;
         }
         continue;
@@ -210,30 +235,75 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
 
 // ─── CLI entry ────────────────────────────────────────────────────────────────
 
-async function runAgent(promptArg: string | undefined, opts: { interactive: boolean }): Promise<void> {
+async function runAgent(
+  promptArg: string | undefined,
+  opts: { interactive: boolean; session: string | undefined },
+): Promise<void> {
   const cwd = process.cwd();
   const tools = createBuiltinTools();
   const model = getModelInstance();
-  const graph = createAgent({ model, tools });
+
+  // Session name IS the thread ID. Use the provided name, or generate a fresh
+  // random 8-char hex ID when -s is omitted.
+  const threadId = opts.session ?? randomBytes(4).toString('hex');
+
+  const sessionsDir = defaultSessionsDir();
+  mkdirSync(sessionsDir, { recursive: true });
+  const checkpointer = SqliteSaver.fromConnString(join(sessionsDir, `${threadId}.db`));
+  const graph = createAgent({ model, tools, checkpointer });
+
+  const config: RunnableConfig = {
+    configurable: {
+      thread_id: threadId,
+      workspaceDir: cwd,
+    },
+  };
+
+  /** Read the current context token count from the checkpointer (0 if none). */
+  async function getContextTokens(): Promise<number> {
+    try {
+      const state = await graph.graph.getState(config);
+      const msgs = (state.values['messages'] as BaseMessage[] | undefined) ?? [];
+      return estimateTokens(msgs);
+    } catch {
+      return 0;
+    }
+  }
 
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const systemText = await readFile(resolve(__dirname, 'SYSTEM.md'), 'utf-8');
   const prompt = promptArg ?? (await readStdin());
 
   if (!prompt) { renderError('No prompt provided.'); process.exit(1); }
-  renderHeader({ prompt, cwd, toolCount: tools.length, model: getModelName() });
-  let messages: BaseMessage[] = [new SystemMessage(systemText)];
-  messages = await runExchange({ prompt, messages, graph, cwd });
+
+  // Every thread is new — always seed the SystemMessage.
+  const seedMessages: BaseMessage[] = [new SystemMessage(systemText)];
+
+  const headerBase = { cwd, toolCount: tools.length, model: getModelName(), session: threadId };
+
+  renderHeader({ ...headerBase, prompt, contextTokens: await getContextTokens() });
+
+  // Compact before first exchange (no-op on a fresh thread)
+  const compResult = await maybeCompact(graph, config, model);
+  if (compResult.compacted) renderCompacted(compResult.removedCount);
+
+  await runExchange({ prompt, messages: seedMessages, graph, cwd, config });
+
   if (opts.interactive) {
     while (true) {
       println();
       const next = await readInteractiveLine('\x1b[36m>\x1b[0m ');
       if (!next) break;
-      renderHeader({ prompt: next, cwd, toolCount: tools.length, model: getModelName() });
-      messages = await runExchange({ prompt: next, messages, graph, cwd });
+      renderHeader({ ...headerBase, prompt: next, contextTokens: await getContextTokens() });
+
+      const cr = await maybeCompact(graph, config, model);
+      if (cr.compacted) renderCompacted(cr.removedCount);
+
+      await runExchange({ prompt: next, messages: [], graph, cwd, config });
     }
-    println('\x1b[2m(session ended)\x1b[0m');
   }
+
+  renderSessionExit(threadId);
 }
 
 const program = new Command()
@@ -241,8 +311,9 @@ const program = new Command()
   .description('Mindful agent CLI')
   .version('0.1.5')
   .option('-i, --interactive', 'Stay in a REPL loop', false)
+  .option('-s, --session <name>', 'Session name / thread ID (omit for a fresh random ID)')
   .argument('[prompt]', 'Prompt to run (reads stdin if omitted)')
-  .action(async (promptArg: string | undefined, opts: { interactive: boolean }) => {
+  .action(async (promptArg: string | undefined, opts: { interactive: boolean; session: string | undefined }) => {
     await runAgent(promptArg, opts);
   });
 

@@ -4,3 +4,6 @@ packages:
   - 'core'
   - 'agent'
   - 'cli'
+
+onlyBuiltDependencies:
+  - better-sqlite3
