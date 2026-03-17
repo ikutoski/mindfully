@@ -44,6 +44,7 @@ import {
   ConcurrentToolRenderer,
 } from './render.js';
 import { maybeCompact, estimateTokens } from './compactor.js';
+import { get } from 'node:http';
 
 const logger = createLogger('cli');
 
@@ -240,7 +241,8 @@ async function runAgent(
 ): Promise<void> {
   const cwd = process.cwd();
   const model = getModelInstance();
-  const tools = createBuiltinTools(model);
+  const toolsModel = getModelInstance({ streaming: false }); // separate non-streaming instance for tools to avoid interleaved output
+  const tools = createBuiltinTools(toolsModel);
 
   // Session name IS the thread ID. Use the provided name, or generate a fresh
   // random 8-char hex ID when -s is omitted.

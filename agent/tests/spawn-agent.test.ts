@@ -7,26 +7,30 @@ import type { StructuredToolInterface } from '@langchain/core/tools';
 // Module mocks — must be declared before any dynamic imports.
 // ---------------------------------------------------------------------------
 
-// Mock MemorySaver from @langchain/langgraph
-vi.mock('@langchain/langgraph', () => ({
-  MemorySaver: vi.fn().mockImplementation(() => ({})),
+// Mock createReactAgent from @langchain/langgraph/prebuilt
+vi.mock('@langchain/langgraph/prebuilt', () => ({
+  createReactAgent: vi.fn(),
 }));
 
-// Mock createAgent from langchain
-vi.mock('langchain', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('langchain')>();
-  return {
-    ...actual,
-    createAgent: vi.fn(),
-  };
+// Mock GraphRecursionError from @langchain/langgraph so we can throw it in tests
+vi.mock('@langchain/langgraph', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@langchain/langgraph')>();
+  // Provide a real subclass so `err instanceof GraphRecursionError` works in the impl
+  class GraphRecursionError extends Error {
+    constructor(message?: string) {
+      super(message ?? 'Recursion limit exceeded');
+      this.name = 'GraphRecursionError';
+    }
+  }
+  return { ...actual, GraphRecursionError };
 });
 
 // ---------------------------------------------------------------------------
 // Imports (after mocks are set up)
 // ---------------------------------------------------------------------------
 
-import { MemorySaver } from '@langchain/langgraph';
-import { createAgent } from 'langchain';
+import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { GraphRecursionError } from '@langchain/langgraph';
 import { createSpawnAgentTool } from '../src/tools/builtin/spawn-agent.js';
 
 // ---------------------------------------------------------------------------
@@ -41,7 +45,7 @@ function makeTool(name: string): StructuredToolInterface {
   return { name } as unknown as StructuredToolInterface;
 }
 
-/** Build a fake graph whose invoke() resolves with messages. */
+/** Build a fake graph whose invoke() resolves with the given messages. */
 function makeGraph(messages: unknown[]) {
   return {
     invoke: vi.fn().mockResolvedValue({ messages }),
@@ -49,19 +53,10 @@ function makeGraph(messages: unknown[]) {
 }
 
 /** Build a fake graph whose invoke() rejects with an error. */
-function makeFailingGraph(message: string) {
+function makeFailingGraph(err: Error) {
   return {
-    invoke: vi.fn().mockRejectedValue(new Error(message)),
+    invoke: vi.fn().mockRejectedValue(err),
   };
-}
-
-/**
- * Cast a fake graph object to the createAgent return type.
- * Requires going through `unknown` because the types don't overlap directly.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function asGraph(g: { invoke: any }): ReturnType<typeof createAgent> {
-  return g as unknown as ReturnType<typeof createAgent>;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,18 +64,18 @@ function asGraph(g: { invoke: any }): ReturnType<typeof createAgent> {
 // ---------------------------------------------------------------------------
 
 describe('spawn_agent tool', () => {
-  const mockedCreateAgent = vi.mocked(createAgent);
-  const mockedMemorySaver = vi.mocked(MemorySaver);
+  const mockedCreateReactAgent = vi.mocked(createReactAgent);
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  // 1. Happy path — returns final AIMessage text
+  // ── Happy path ─────────────────────────────────────────────────────────────
+
   it('returns the final AIMessage text', async () => {
     const finalMsg = new AIMessage('Done! Here is your answer.');
     const graph = makeGraph([new HumanMessage('task'), finalMsg]);
-    mockedCreateAgent.mockReturnValue(asGraph(graph));
+    mockedCreateReactAgent.mockReturnValue(graph as never);
 
     const allTools = [makeTool('read'), makeTool('bash')];
     const spawnTool = createSpawnAgentTool(makeModel(), allTools);
@@ -90,10 +85,27 @@ describe('spawn_agent tool', () => {
     expect(result).toBe('Done! Here is your answer.');
   });
 
-  // 2. Context injection — first input is SystemMessage when context provided
+  it('returns text from last AIMessage with array content blocks', async () => {
+    const finalMsg = new AIMessage({
+      content: [
+        { type: 'text', text: 'Hello ' },
+        { type: 'text', text: 'world' },
+      ],
+    });
+    const graph = makeGraph([finalMsg]);
+    mockedCreateReactAgent.mockReturnValue(graph as never);
+
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
+    const result = await spawnTool.invoke({ prompt: 'task' });
+
+    expect(result).toBe('Hello world');
+  });
+
+  // ── Context / message construction ────────────────────────────────────────
+
   it('prepends a SystemMessage when context is provided', async () => {
     const graph = makeGraph([new AIMessage('ok')]);
-    mockedCreateAgent.mockReturnValue(asGraph(graph));
+    mockedCreateReactAgent.mockReturnValue(graph as never);
 
     const allTools = [makeTool('read')];
     const spawnTool = createSpawnAgentTool(makeModel(), allTools);
@@ -109,14 +121,11 @@ describe('spawn_agent tool', () => {
     expect((msgs[1] as HumanMessage).content).toBe('Do task');
   });
 
-  // 3. No context — first input is HumanMessage when context omitted
-  it('starts with HumanMessage when context is omitted', async () => {
+  it('starts with HumanMessage only when context is omitted', async () => {
     const graph = makeGraph([new AIMessage('ok')]);
-    mockedCreateAgent.mockReturnValue(asGraph(graph));
+    mockedCreateReactAgent.mockReturnValue(graph as never);
 
-    const allTools = [makeTool('read')];
-    const spawnTool = createSpawnAgentTool(makeModel(), allTools);
-
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
     await spawnTool.invoke({ prompt: 'Do task' });
 
     const invokeArgs = graph.invoke.mock.calls[0][0] as { messages: unknown[] };
@@ -126,93 +135,190 @@ describe('spawn_agent tool', () => {
     expect(msgs[0]).toBeInstanceOf(HumanMessage);
   });
 
-  // 4. Tool filtering — createAgent receives only the requested tool
-  it('passes only requested tools to createAgent', async () => {
+  // ── Tool filtering ─────────────────────────────────────────────────────────
+
+  it('passes only requested tools to createReactAgent', async () => {
     const graph = makeGraph([new AIMessage('filtered')]);
-    mockedCreateAgent.mockReturnValue(asGraph(graph));
+    mockedCreateReactAgent.mockReturnValue(graph as never);
 
     const readTool = makeTool('read');
     const bashTool = makeTool('bash');
-    const allTools = [readTool, bashTool];
-    const spawnTool = createSpawnAgentTool(makeModel(), allTools);
+    const spawnTool = createSpawnAgentTool(makeModel(), [readTool, bashTool]);
 
     await spawnTool.invoke({ prompt: 'task', tools: ['bash'] });
 
-    const createAgentArgs = mockedCreateAgent.mock.calls[0][0] as { tools: StructuredToolInterface[] };
-    expect(createAgentArgs.tools).toHaveLength(1);
-    expect(createAgentArgs.tools[0].name).toBe('bash');
+    const createArgs = mockedCreateReactAgent.mock.calls[0][0] as {
+      tools: StructuredToolInterface[];
+    };
+    expect(createArgs.tools).toHaveLength(1);
+    expect(createArgs.tools[0].name).toBe('bash');
   });
 
-  // 5. Omit tools = all — createAgent receives all allTools
-  it('passes all tools to createAgent when tools param is omitted', async () => {
+  it('passes all tools to createReactAgent when tools param is omitted', async () => {
     const graph = makeGraph([new AIMessage('all tools')]);
-    mockedCreateAgent.mockReturnValue(asGraph(graph));
+    mockedCreateReactAgent.mockReturnValue(graph as never);
 
     const allTools = [makeTool('read'), makeTool('bash'), makeTool('glob')];
     const spawnTool = createSpawnAgentTool(makeModel(), allTools);
 
     await spawnTool.invoke({ prompt: 'task' });
 
-    const createAgentArgs = mockedCreateAgent.mock.calls[0][0] as { tools: StructuredToolInterface[] };
-    expect(createAgentArgs.tools).toHaveLength(3);
-    expect(createAgentArgs.tools.map((t) => t.name)).toEqual(['read', 'bash', 'glob']);
+    const createArgs = mockedCreateReactAgent.mock.calls[0][0] as {
+      tools: StructuredToolInterface[];
+    };
+    expect(createArgs.tools).toHaveLength(3);
+    expect(createArgs.tools.map((t) => t.name)).toEqual(['read', 'bash', 'glob']);
   });
 
-  // 6. Unknown tool name — returns error string, createAgent not called
   it('returns "Unknown tools: ..." for unrecognised tool names', async () => {
-    const allTools = [makeTool('read')];
-    const spawnTool = createSpawnAgentTool(makeModel(), allTools);
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
 
     const result = await spawnTool.invoke({ prompt: 'task', tools: ['read', 'nonexistent'] });
 
     expect(result).toBe('Unknown tools: nonexistent');
-    expect(mockedCreateAgent).not.toHaveBeenCalled();
+    expect(mockedCreateReactAgent).not.toHaveBeenCalled();
   });
 
-  // 7. Child graph throws — returns "Child agent failed: ..."
-  it('returns "Child agent failed: ..." when graph.invoke throws', async () => {
-    const graph = makeFailingGraph('LLM rate limited');
-    mockedCreateAgent.mockReturnValue(asGraph(graph));
+  // ── createReactAgent configuration ────────────────────────────────────────
 
-    const allTools = [makeTool('read')];
-    const spawnTool = createSpawnAgentTool(makeModel(), allTools);
+  it('calls createReactAgent with checkpointer: false', async () => {
+    const graph = makeGraph([new AIMessage('ok')]);
+    mockedCreateReactAgent.mockReturnValue(graph as never);
 
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
+    await spawnTool.invoke({ prompt: 'task' });
+
+    const createArgs = mockedCreateReactAgent.mock.calls[0][0] as {
+      checkpointer: unknown;
+    };
+    expect(createArgs.checkpointer).toBe(false);
+  });
+
+  // ── maxIterations / recursionLimit ─────────────────────────────────────────
+
+  it('passes recursionLimit = maxIterations * 2 to graph.invoke', async () => {
+    const graph = makeGraph([new AIMessage('ok')]);
+    mockedCreateReactAgent.mockReturnValue(graph as never);
+
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
+    await spawnTool.invoke({ prompt: 'task', maxIterations: 5 });
+
+    const invokeConfig = graph.invoke.mock.calls[0][1] as { recursionLimit: number };
+    expect(invokeConfig.recursionLimit).toBe(10); // 5 * 2
+  });
+
+  it('defaults maxIterations to 20, giving recursionLimit of 40', async () => {
+    const graph = makeGraph([new AIMessage('ok')]);
+    mockedCreateReactAgent.mockReturnValue(graph as never);
+
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
+    await spawnTool.invoke({ prompt: 'task' }); // no maxIterations
+
+    const invokeConfig = graph.invoke.mock.calls[0][1] as { recursionLimit: number };
+    expect(invokeConfig.recursionLimit).toBe(40); // 20 * 2
+  });
+
+  // ── configurable / workspaceDir ────────────────────────────────────────────
+
+  it('forwards workspaceDir from parent configurable to graph.invoke', async () => {
+    const graph = makeGraph([new AIMessage('ok')]);
+    mockedCreateReactAgent.mockReturnValue(graph as never);
+
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
+    await spawnTool.invoke(
+      { prompt: 'task' },
+      { configurable: { workspaceDir: '/project/root' } },
+    );
+
+    const invokeConfig = graph.invoke.mock.calls[0][1] as {
+      configurable: { workspaceDir: string };
+    };
+    expect(invokeConfig.configurable.workspaceDir).toBe('/project/root');
+  });
+
+  it('passes workspaceDir as undefined when parent has no configurable', async () => {
+    const graph = makeGraph([new AIMessage('ok')]);
+    mockedCreateReactAgent.mockReturnValue(graph as never);
+
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
+    await spawnTool.invoke({ prompt: 'task' }); // no config arg
+
+    const invokeConfig = graph.invoke.mock.calls[0][1] as {
+      configurable: { workspaceDir: unknown };
+    };
+    expect(invokeConfig.configurable.workspaceDir).toBeUndefined();
+  });
+
+  // ── callbacks isolation ────────────────────────────────────────────────────
+
+  it('passes callbacks: [] to graph.invoke to isolate child from parent stream', async () => {
+    const graph = makeGraph([new AIMessage('ok')]);
+    mockedCreateReactAgent.mockReturnValue(graph as never);
+
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
+    await spawnTool.invoke({ prompt: 'task' });
+
+    const invokeConfig = graph.invoke.mock.calls[0][1] as { callbacks: unknown[] };
+    expect(invokeConfig.callbacks).toEqual([]);
+  });
+
+  // ── Error handling ─────────────────────────────────────────────────────────
+
+  it('returns "Child agent hit iteration limit" when GraphRecursionError is thrown', async () => {
+    const graph = makeFailingGraph(new GraphRecursionError());
+    mockedCreateReactAgent.mockReturnValue(graph as never);
+
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
+    const result = await spawnTool.invoke({ prompt: 'task' });
+
+    expect(result).toBe('Child agent hit iteration limit');
+  });
+
+  it('returns "Child agent failed: ..." for non-recursion errors', async () => {
+    const graph = makeFailingGraph(new Error('LLM rate limited'));
+    mockedCreateReactAgent.mockReturnValue(graph as never);
+
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
     const result = await spawnTool.invoke({ prompt: 'task' });
 
     expect(result).toBe('Child agent failed: LLM rate limited');
   });
 
-  // callbacks isolation — graph.invoke must receive callbacks: [] to prevent
-  // the child from inheriting the parent's LangGraph streaming context
-  it('passes callbacks: [] to graph.invoke to isolate child from parent stream', async () => {
-    const graph = makeGraph([new AIMessage('ok')]);
-    mockedCreateAgent.mockReturnValue(asGraph(graph));
+  it('handles non-Error thrown values', async () => {
+    const graph = { invoke: vi.fn().mockRejectedValue('plain string error') };
+    mockedCreateReactAgent.mockReturnValue(graph as never);
 
     const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
-    await spawnTool.invoke({ prompt: 'task' });
+    const result = await spawnTool.invoke({ prompt: 'task' });
 
-    const invokeConfig = graph.invoke.mock.calls[0][1] as { callbacks?: unknown[] };
-    expect(invokeConfig.callbacks).toEqual([]);
+    expect(result).toBe('Child agent failed: plain string error');
   });
 
-  // Bonus: MemorySaver is instantiated once per invocation
-  it('creates a new MemorySaver per invocation', async () => {
-    const graph = makeGraph([new AIMessage('ok')]);
-    mockedCreateAgent.mockReturnValue(asGraph(graph));
+  // ── No response ────────────────────────────────────────────────────────────
 
-    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
-
-    await spawnTool.invoke({ prompt: 'first' });
-    await spawnTool.invoke({ prompt: 'second' });
-
-    expect(mockedMemorySaver).toHaveBeenCalledTimes(2);
-  });
-
-  // Bonus: (no response) when all messages lack text
   it('returns "(no response)" when child produces no text', async () => {
-    const emptyAI = new AIMessage('');
-    const graph = makeGraph([emptyAI]);
-    mockedCreateAgent.mockReturnValue(asGraph(graph));
+    const graph = makeGraph([new AIMessage('')]);
+    mockedCreateReactAgent.mockReturnValue(graph as never);
+
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
+    const result = await spawnTool.invoke({ prompt: 'task' });
+
+    expect(result).toBe('(no response)');
+  });
+
+  it('returns "(no response)" when messages array is empty', async () => {
+    const graph = makeGraph([]);
+    mockedCreateReactAgent.mockReturnValue(graph as never);
+
+    const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
+    const result = await spawnTool.invoke({ prompt: 'task' });
+
+    expect(result).toBe('(no response)');
+  });
+
+  it('returns "(no response)" when last message is not an AIMessage', async () => {
+    const graph = makeGraph([new HumanMessage('just human')]);
+    mockedCreateReactAgent.mockReturnValue(graph as never);
 
     const spawnTool = createSpawnAgentTool(makeModel(), [makeTool('read')]);
     const result = await spawnTool.invoke({ prompt: 'task' });

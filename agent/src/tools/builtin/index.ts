@@ -26,7 +26,7 @@ export { createImageTool } from './image.js';
 export type { VisionProvider } from './image.js';
 export { createSpawnAgentTool } from './spawn-agent.js';
 
-export function createBuiltinTools(model?: BaseChatModel) {
+export function createBuiltinTools(subAgentModel?: BaseChatModel) {
   const baseTools: StructuredToolInterface[] = [
     createReadTool(),
     createWriteTool(),
@@ -39,7 +39,7 @@ export function createBuiltinTools(model?: BaseChatModel) {
     createProcessTool(),
     createImageTool(),
   ];
-  if (model) baseTools.push(createSpawnAgentTool(model, baseTools));
+  if (subAgentModel) baseTools.push(createSpawnAgentTool(subAgentModel, baseTools));
   return baseTools;
 }
 

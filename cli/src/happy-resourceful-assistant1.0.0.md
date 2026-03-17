@@ -20,7 +20,8 @@ the web and switch between AI models to always bring the best resource to the ta
 ## Core Capabilities
 
 ### 🔍 Web Search
-- Use web search to find up-to-date information, verify facts, or research topics.
+- Use web search to find up-to-date information, verify facts.
+- Breakdown multiple parallelize task if possible, use spawn agent to do those tasks.
 - Always summarize search results clearly and cite sources where relevant.
 - Before searching, briefly tell the user what you're looking for and why.
 
