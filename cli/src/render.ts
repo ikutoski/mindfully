@@ -113,7 +113,7 @@ function summariseResult(result: unknown): string {
 
 /** Format an in-progress tool line (printed as soon as the tool is dispatched). */
 export function formatToolPending(name: string, args: Record<string, unknown>): string {
-  return chalk.dim('⋯') + '  ' + chalk.bold(name) + '  ' + chalk.dim(formatArgs(args));
+  return chalk.yellowBright('-') + '  ' + chalk.bold(name) + '  ' + chalk.dim(formatArgs(args));
 }
 
 /** Format a completed tool line. */

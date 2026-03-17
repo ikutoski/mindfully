@@ -25,12 +25,15 @@ import { homedir } from 'node:os';
 import {
   HumanMessage,
   SystemMessage,
+  AIMessage,
   type BaseMessage,
+  ToolMessage,
+  AIMessageChunk,
 } from '@langchain/core/messages';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from 'commander';
 import { SqliteSaver } from '@langchain/langgraph-checkpoint-sqlite';
-import { createAgent } from 'langchain';
+import { createAgent, Tool } from 'langchain';
 import { getModelInstance, createBuiltinTools } from 'agent';
 import { createLogger } from 'core';
 import {
@@ -156,7 +159,6 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
 
   let finalMessages: BaseMessage[] = inputMessages;
   let responseText = '';
-  let toolSectionStarted = false;
 
   const streamConfig = {
     streamMode: ['messages', 'updates', 'values'] as ('messages' | 'updates' | 'values')[],
@@ -174,51 +176,44 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
       const [mode, chunk] = item as [string, unknown];
       // ── messages: stream AI tokens + detect tool calls ───────────────────
       if (mode === 'messages') {
-        const [msgChunk, metadata] = chunk as [unknown, Record<string, unknown>];
-        if ((metadata?.['langgraph_node'] as string) === 'tools') continue;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const msg = msgChunk as any;
-        if ((typeof msg._getType === 'function' ? msg._getType() : null) !== 'ai') continue;
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const toolCalls: Array<{ name: string; args: Record<string, unknown>; id?: string }> =
-          msg.tool_calls ?? [];
-        if (toolCalls.length > 0) {
-          if (!toolSectionStarted) { println(); toolSectionStarted = true; }
-          for (const tc of toolCalls) {
-            toolRenderer.addTool(tc.id ?? tc.name, tc.name, tc.args ?? {});
-          }
+        const [msgChunk, metadata] = chunk as [AIMessageChunk, Record<string, unknown>];
+        // if(msgChunk.tool_calls?.length || 0 > 0) continue;
+        if (ToolMessage.isInstance(msgChunk))  continue;
+        const token = extractText(msgChunk.content);
+        if(AIMessageChunk.isInstance(msgChunk)) {
+          if (token.length > 0) { responseText += token; print(token); }
           continue;
         }
-
-        const token = extractText(msg.content);
-        if (token.length > 0) { responseText += token; print(token); }
-        continue;
       }
 
       // ── updates: complete tool calls ─────────────────────────────────────
-      if (mode === 'updates') {
-        const updates = chunk as Record<string, { messages?: BaseMessage[] }>;
-        if (updates['tools']?.messages) {
-          for (const msg of updates['tools'].messages) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const m = msg as any;
-            if ((typeof m._getType === 'function' ? m._getType() : null) !== 'tool') continue;
-            const id: string = m.tool_call_id ?? '';
-            const error: string | undefined = m.status === 'error' ? String(m.content) : undefined;
-            toolRenderer.completeTool(id, m.status === 'error' ? undefined : m.content, error);
-          }
-          toolRenderer.stop();
-          println();
-          toolSectionStarted = false;
-        }
-        continue;
-      }
+    
 
       // ── values: capture final state ──────────────────────────────────────
       if (mode === 'values') {
         const values = chunk as { messages?: BaseMessage[] };
         if (values.messages?.length) finalMessages = values.messages;
+        let lastMessage = finalMessages[finalMessages.length - 1];
+        if (AIMessage.isInstance(lastMessage)) {
+          let aiMessage = lastMessage as AIMessage;
+          const toolCalls: Array<{ name: string; args: Record<string, unknown>; id?: string }>
+            = aiMessage?.tool_calls ?? [];
+          if (toolCalls.length > 0) {
+            println(`\ntoolcall(s) ${toolCalls.map((tc) => tc.name).join(',')} `);
+            for (const tc of toolCalls) {
+              toolRenderer.addTool(tc.id ?? tc.name, tc.name, tc.args ?? {});
+            }
+            continue;
+          }
+        }
+        if (ToolMessage.isInstance(lastMessage)) {
+          // If the final message is a ToolMessage, render its content as well.
+          let toolMessage = lastMessage as ToolMessage;
+          let id = toolMessage.tool_call_id ?? '';
+          const error: string | undefined = toolMessage.status === 'error' ? String(toolMessage.content) : undefined;
+          toolRenderer.completeTool(id, toolMessage.status === 'error' ? undefined : toolMessage.content, error);
+        }
+
       }
     }
   } finally {
