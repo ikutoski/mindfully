@@ -239,8 +239,8 @@ async function runAgent(
   opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined },
 ): Promise<void> {
   const cwd = process.cwd();
-  const tools = createBuiltinTools();
   const model = getModelInstance();
+  const tools = createBuiltinTools(model);
 
   // Session name IS the thread ID. Use the provided name, or generate a fresh
   // random 8-char hex ID when -s is omitted.

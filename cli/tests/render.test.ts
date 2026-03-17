@@ -22,7 +22,7 @@ afterEach(() => {
   Object.defineProperty(process.stdout, 'isTTY', { value: originalIsTTY, configurable: true });
 });
 
-import { formatToolDone, ConcurrentToolRenderer, renderHeader, renderSessionExit } from '../src/render.js';
+import { formatToolDone, formatToolPending, ConcurrentToolRenderer, renderHeader, renderSessionExit } from '../src/render.js';
 
 // ─── formatToolDone ───────────────────────────────────────────────────────────
 
@@ -52,16 +52,55 @@ describe('formatToolDone', () => {
   });
 });
 
+// ─── formatToolPending ────────────────────────────────────────────────────────
+
+describe('formatToolPending', () => {
+  it('contains ⋯ and the tool name', () => {
+    const line = formatToolPending('bash', { command: 'ls' });
+    expect(line).toContain('⋯');
+    expect(line).toContain('bash');
+  });
+
+  it('includes a formatted args preview', () => {
+    const line = formatToolPending('read', { path: 'src/index.ts' });
+    expect(line).toContain('path=');
+    expect(line).toContain('src/index.ts');
+  });
+});
+
 // ─── ConcurrentToolRenderer ───────────────────────────────────────────────────
 
 describe('ConcurrentToolRenderer', () => {
-  it('addTool then completeTool prints a done line', () => {
+  it('addTool prints a pending line immediately', () => {
     const renderer = new ConcurrentToolRenderer();
     renderer.addTool('tc-1', 'bash', { command: 'ls' });
-    expect(capturedOutput()).toBe(''); // nothing printed on addTool
+    const out = capturedOutput();
+    expect(out).toContain('⋯');
+    expect(out).toContain('bash');
+  });
 
+  it('addTool only prints the pending line once per ID (streaming delta guard)', () => {
+    const renderer = new ConcurrentToolRenderer();
+    // Simulate multiple streaming chunks for the same tool call ID
+    renderer.addTool('tc-1', 'bash', { command: '' });
+    renderer.addTool('tc-1', 'bash', { command: 'ls -la' });
+    renderer.addTool('tc-1', 'bash', { command: 'ls -la /tmp' });
+    const pendingCount = (capturedOutput().match(/⋯/g) ?? []).length;
+    expect(pendingCount).toBe(1);
+  });
+
+  it('addTool with empty name does not print (LLM delta chunk guard)', () => {
+    const renderer = new ConcurrentToolRenderer();
+    renderer.addTool('', '', {});
+    expect(capturedOutput()).toBe('');
+  });
+
+  it('addTool then completeTool prints a pending line then a done line', () => {
+    const renderer = new ConcurrentToolRenderer();
+    renderer.addTool('tc-1', 'bash', { command: 'ls' });
     renderer.completeTool('tc-1', 'file.txt', undefined);
     const out = capturedOutput();
+    expect(out).toContain('⋯');
     expect(out).toContain('✓');
     expect(out).toContain('bash');
     expect(out).toContain('\n');
@@ -76,9 +115,10 @@ describe('ConcurrentToolRenderer', () => {
     expect(out).toContain('command not found');
   });
 
-  it('completeTool for unknown id is a no-op', () => {
+  it('completeTool for unknown id is a no-op (beyond the pending line)', () => {
     const renderer = new ConcurrentToolRenderer();
     expect(() => renderer.completeTool('nonexistent', 'x', undefined)).not.toThrow();
+    // nothing for completeTool since id was never registered
     expect(capturedOutput()).toBe('');
   });
 

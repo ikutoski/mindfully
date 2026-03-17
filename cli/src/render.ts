@@ -111,6 +111,11 @@ function summariseResult(result: unknown): string {
   return chalk.dim(String(result));
 }
 
+/** Format an in-progress tool line (printed as soon as the tool is dispatched). */
+export function formatToolPending(name: string, args: Record<string, unknown>): string {
+  return chalk.dim('⋯') + '  ' + chalk.bold(name) + '  ' + chalk.dim(formatArgs(args));
+}
+
 /** Format a completed tool line. */
 export function formatToolDone(
   name: string,
@@ -152,14 +157,21 @@ export class ConcurrentToolRenderer {
   private entries = new Map<string, ToolEntry>();
 
   addTool(id: string, name: string, args: Record<string, unknown>): void {
+    const isNew = !this.entries.has(id);
     this.entries.set(id, { name, args, startTime: Date.now() });
+    // Print the pending line exactly once per tool call ID.
+    // name.length > 0 guards against LLM streaming delta chunks where both
+    // id and name arrive as empty strings (only the first real chunk has them).
+    if (isNew && name.length > 0) {
+      println(formatToolPending(name, args));
+    }
   }
 
   completeTool(id: string, result: unknown, error: string | undefined): void {
     const entry = this.entries.get(id);
     if (!entry) return;
     const elapsedMs = Date.now() - entry.startTime;
-    process.stdout.write(formatToolDone(entry.name, result, error, elapsedMs) + '\n');
+    println(formatToolDone(entry.name, result, error, elapsedMs));
   }
 
   stop(): void { /* no-op — kept for call-site compatibility */ }
