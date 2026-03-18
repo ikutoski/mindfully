@@ -20,7 +20,7 @@ import { readFile } from 'node:fs/promises';
 import { mkdirSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve, join } from 'node:path';
+import { dirname, resolve, join, format } from 'node:path';
 import { homedir } from 'node:os';
 import {
   HumanMessage,
@@ -43,11 +43,14 @@ import {
   renderMarkdown,
   renderError,
   renderCompacted,
+  renderCompactSkipped,
   renderSessionExit,
   ConcurrentToolRenderer,
+  formatNotice,
 } from './render.js';
 import { maybeCompact, estimateTokens } from './compactor.js';
 import { get } from 'node:http';
+import { ms } from 'zod/v4/locales';
 
 const logger = createLogger('cli');
 
@@ -177,7 +180,12 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
       // ── messages: stream AI tokens + detect tool calls ───────────────────
       if (mode === 'messages') {
         const [msgChunk, metadata] = chunk as [AIMessageChunk, Record<string, unknown>];
-        // if(msgChunk.tool_calls?.length || 0 > 0) continue;
+        if(msgChunk.tool_calls?.length || 0 > 0) {
+          
+          println(formatNotice('Calling Tools', `(${msgChunk.tool_calls!.map((tc) => tc.name).join(', ')})`));
+          // println(`\ncalling tools ${msgChunk.tool_calls!.map((tc) => tc.name).join(',')}`); 
+          continue;
+        };
         if (ToolMessage.isInstance(msgChunk))  continue;
         const token = extractText(msgChunk.content);
         if(AIMessageChunk.isInstance(msgChunk)) {
@@ -186,11 +194,13 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
         }
       }
 
-      if(mode === 'updates') {
-        if (AIMessage.isInstance(chunk) && chunk.tool_calls?.length || 0 > 0) { 
-          println(`\ntoolcall(s) ${toolCalls.map((tc) => tc.name).join(',')} `);
-        }
-      }
+      // if(mode === 'updates') {
+      //   const isAiMessage = AIMessage.isInstance(chunk) ? chunk as AIMessage : null;
+      //   let aiMessage = chunk as AIMessage;
+      //   if (isAiMessage && (aiMessage.tool_calls?.length ?? 0) > 0) {
+          
+      //   }
+      // }
     
 
       // ── values: capture final state ──────────────────────────────────────
@@ -236,7 +246,7 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
 
 async function runAgent(
   promptArg: string | undefined,
-  opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined },
+  opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined; compact: boolean },
 ): Promise<void> {
   const cwd = process.cwd();
   const model = getModelInstance();
@@ -286,8 +296,11 @@ async function runAgent(
 
   renderHeader({ ...headerBase, prompt, contextTokens: await getContextTokens() });
 
-  // Compact before first exchange (no-op on a fresh thread)
-  const compResult = await maybeCompact(graph, config, model);
+  // Compact before first exchange.
+  // --compact forces it regardless of thresholds; otherwise auto threshold applies.
+  const compResult = opts.compact
+    ? await maybeCompact(graph, config, model, { tokenThreshold: 0, messageThreshold: 0 })
+    : await maybeCompact(graph, config, model);
   if (compResult.compacted) renderCompacted(compResult.removedCount);
 
   await runExchange({ prompt, messages: seedMessages, graph, cwd, config });
@@ -297,6 +310,18 @@ async function runAgent(
       println("\x1b[2m(Press Ctrl+C to exit)\x1b[0m");
       const next = await readInteractiveLine('\x1b[36m>\x1b[0m ');
       if (!next) break;
+
+      // Handle /compact slash command — force compaction then continue to next prompt.
+      if (next === '/compact') {
+        const cr = await maybeCompact(graph, config, model, { tokenThreshold: 0, messageThreshold: 0 });
+        if (cr.compacted) {
+          renderCompacted(cr.removedCount);
+        } else {
+          renderCompactSkipped();
+        }
+        continue;
+      }
+
       renderHeader({ ...headerBase, prompt: next, contextTokens: await getContextTokens() });
 
       const cr = await maybeCompact(graph, config, model);
@@ -316,8 +341,9 @@ const program = new Command()
   .option('-i, --interactive', 'Stay in a REPL loop', false)
   .option('-s, --session <name>', 'Session name / thread ID (omit for a fresh random ID)')
   .option('-p, --system-prompt <file>', 'Path to system prompt file (default: built-in SYSTEM.md)')
+  .option('--compact', 'Force compact the session context before the first exchange', false)
   .argument('[prompt]', 'Prompt to run (reads stdin if omitted)')
-  .action(async (promptArg: string | undefined, opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined }) => {
+  .action(async (promptArg: string | undefined, opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined; compact: boolean }) => {
     await runAgent(promptArg, opts);
   });
 

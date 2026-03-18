@@ -111,6 +111,11 @@ function summariseResult(result: unknown): string {
   return chalk.dim(String(result));
 }
 
+export function formatNotice(lead: string,notice: string):string {
+  return chalk.yellowBright('*') + '  ' + chalk.bold(lead) + '  ' + chalk.bold(notice);
+}
+
+
 /** Format an in-progress tool line (printed as soon as the tool is dispatched). */
 export function formatToolPending(name: string, args: Record<string, unknown>): string {
   return chalk.yellowBright('-') + '  ' + chalk.bold(name) + '  ' + chalk.dim(formatArgs(args));
@@ -198,6 +203,10 @@ export function renderMarkdown(text: string): string {
 
 export function renderCompacted(removedCount: number): void {
   println(chalk.dim(`⟳ context compacted — ${removedCount} message${removedCount !== 1 ? 's' : ''} summarised`));
+}
+
+export function renderCompactSkipped(): void {
+  println(chalk.dim('⟳ context is small — nothing to compact'));
 }
 
 // ─── Error display ────────────────────────────────────────────────────────────
