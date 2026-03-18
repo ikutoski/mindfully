@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HumanMessage, AIMessage, SystemMessage, ToolMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage, SystemMessage, ToolMessage, RemoveMessage } from '@langchain/core/messages';
 import type { BaseMessage } from '@langchain/core/messages';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
@@ -175,7 +175,7 @@ describe('maybeCompact', () => {
 
   // ── replacement structure ─────────────────────────────────────────────────
 
-  it('keeps SystemMessage at index 0 after compaction', async () => {
+  it('sends RemoveMessages for all compacted messages (SystemMessage stays in state, not in payload)', async () => {
     const system = new SystemMessage('You are a helpful assistant.');
     const messages: BaseMessage[] = [
       system,
@@ -192,11 +192,15 @@ describe('maybeCompact', () => {
     });
 
     const [, updateValues] = agent.updateState.mock.calls[0] as [RunnableConfig, { messages: BaseMessage[] }, string];
-    expect(updateValues.messages[0]).toBeInstanceOf(SystemMessage);
-    expect((updateValues.messages[0] as SystemMessage).content).toBe('You are a helpful assistant.');
+    // All leading messages should be RemoveMessages (for the compacted window)
+    const removeMessages = updateValues.messages.filter((m) => m instanceof RemoveMessage);
+    expect(removeMessages.length).toBeGreaterThan(0);
+    // SystemMessage is NOT in the payload — it stays in state untouched
+    const systemInPayload = updateValues.messages.find((m) => m instanceof SystemMessage);
+    expect(systemInPayload).toBeUndefined();
   });
 
-  it('inserts HumanMessage("Previous conversation summary:") at index 1', async () => {
+  it('inserts HumanMessage("Previous conversation summary:") after all RemoveMessages', async () => {
     const system = new SystemMessage('sys');
     const messages: BaseMessage[] = [system, ...makeMessages(20)];
     const agent = makeAgent(messages);
@@ -209,12 +213,13 @@ describe('maybeCompact', () => {
     });
 
     const [, updateValues] = agent.updateState.mock.calls[0] as [RunnableConfig, { messages: BaseMessage[] }, string];
-    const idx1 = updateValues.messages[1];
-    expect(idx1).toBeInstanceOf(HumanMessage);
-    expect((idx1 as HumanMessage).content).toBe('Previous conversation summary:');
+    // After all RemoveMessages comes the HumanMessage summary header
+    const firstNonRemove = updateValues.messages.find((m) => !(m instanceof RemoveMessage));
+    expect(firstNonRemove).toBeInstanceOf(HumanMessage);
+    expect((firstNonRemove as HumanMessage).content).toBe('Previous conversation summary:');
   });
 
-  it('inserts the model summary AIMessage at index 2', async () => {
+  it('inserts the model summary AIMessage as the last element', async () => {
     const system = new SystemMessage('sys');
     const messages: BaseMessage[] = [system, ...makeMessages(20)];
     const summaryMsg = new AIMessage('Here is the summary.');
@@ -228,10 +233,11 @@ describe('maybeCompact', () => {
     });
 
     const [, updateValues] = agent.updateState.mock.calls[0] as [RunnableConfig, { messages: BaseMessage[] }, string];
-    expect(updateValues.messages[2]).toBe(summaryMsg);
+    const last = updateValues.messages[updateValues.messages.length - 1];
+    expect(last).toBe(summaryMsg);
   });
 
-  it('preserves the last keepRecent messages after compaction', async () => {
+  it('does NOT include toKeep messages in the updateState payload (they stay in state)', async () => {
     const messages = makeMessages(10);
     const agent = makeAgent(messages);
     const model = makeModel(new AIMessage('summary'));
@@ -244,11 +250,15 @@ describe('maybeCompact', () => {
     });
 
     const [, updateValues] = agent.updateState.mock.calls[0] as [RunnableConfig, { messages: BaseMessage[] }, string];
-    const replacement = updateValues.messages;
-    // last keepRecent messages should be the last keepRecent of the original
+    const payload = updateValues.messages;
+    // Payload = N RemoveMessages + HumanMessage + AIMessage (summary pair only)
+    const nonRemove = payload.filter((m) => !(m instanceof RemoveMessage));
+    expect(nonRemove).toHaveLength(2); // only the summary pair
+    // The tail messages that were kept are NOT re-sent
     const originalTail = messages.slice(-keepRecent);
-    const replacementTail = replacement.slice(-keepRecent);
-    expect(replacementTail).toEqual(originalTail);
+    for (const tailMsg of originalTail) {
+      expect(payload).not.toContain(tailMsg);
+    }
   });
 
   it('calls graph.updateState with "model_request" as the node', async () => {
@@ -299,9 +309,10 @@ describe('maybeCompact', () => {
 
     expect(result.compacted).toBe(true);
     const [, updateValues] = agent.updateState.mock.calls[0] as [RunnableConfig, { messages: BaseMessage[] }, string];
-    // No system message → index 0 should be the HumanMessage summary header
-    expect(updateValues.messages[0]).toBeInstanceOf(HumanMessage);
-    expect((updateValues.messages[0] as HumanMessage).content).toBe('Previous conversation summary:');
+    // First non-RemoveMessage should be the summary header HumanMessage
+    const firstNonRemove = updateValues.messages.find((m) => !(m instanceof RemoveMessage));
+    expect(firstNonRemove).toBeInstanceOf(HumanMessage);
+    expect((firstNonRemove as HumanMessage).content).toBe('Previous conversation summary:');
   });
 
   // ── boundary snapping ─────────────────────────────────────────────────────
@@ -314,20 +325,20 @@ describe('maybeCompact', () => {
     // Should snap back to index 4 (HumanMessage), compacting indices 1..3 = 3 messages.
     const toolMsg = (id: string) =>
       new ToolMessage({ content: 'result', tool_call_id: id });
-    const aiWithTool = (id: string) =>
-      new AIMessage({ content: '', tool_calls: [{ id, name: 'fn', args: {} }] });
+    const aiWithTool = (callId: string, msgId: string) =>
+      new AIMessage({ content: '', id: msgId, tool_calls: [{ id: callId, name: 'fn', args: {} }] });
 
     const messages: BaseMessage[] = [
-      new SystemMessage('sys'),          // 0
-      new HumanMessage('hi'),            // 1
-      aiWithTool('call_1'),              // 2
-      toolMsg('call_1'),                 // 3
-      new HumanMessage('next'),          // 4
-      aiWithTool('call_2'),              // 5
-      toolMsg('call_2'),                 // 6  ← initial windowEnd lands here
-      new AIMessage('ok'),               // 7
-      new HumanMessage('done'),          // 8
-      new AIMessage('bye'),              // 9
+      new SystemMessage({ content: 'sys', id: 'id-0' }),
+      new HumanMessage({ content: 'hi', id: 'id-1' }),
+      aiWithTool('call_1', 'id-2'),
+      new ToolMessage({ content: 'result', tool_call_id: 'call_1', id: 'id-3' }),
+      new HumanMessage({ content: 'next', id: 'id-4' }),
+      aiWithTool('call_2', 'id-5'),
+      new ToolMessage({ content: 'result', tool_call_id: 'call_2', id: 'id-6' }),
+      new AIMessage({ content: 'ok', id: 'id-7' }),
+      new HumanMessage({ content: 'done', id: 'id-8' }),
+      new AIMessage({ content: 'bye', id: 'id-9' }),
     ];
     const agent = makeAgent(messages);
     const model = makeModel(new AIMessage('summary'));
@@ -341,20 +352,28 @@ describe('maybeCompact', () => {
     expect(result.compacted).toBe(true);
 
     const [, updateValues] = agent.updateState.mock.calls[0] as [RunnableConfig, { messages: BaseMessage[] }, string];
-    const replacement = updateValues.messages;
+    const payload = updateValues.messages;
 
-    // The tail must not start with a ToolMessage
-    const tailStart = replacement.findIndex((m) => m instanceof HumanMessage && (m as HumanMessage).content !== 'Previous conversation summary:');
-    const firstTailMsg = replacement[tailStart];
-    expect(firstTailMsg).toBeInstanceOf(HumanMessage);
+    // Payload must be: RemoveMessages... + HumanMessage(summary header) + AIMessage(summary)
+    const removeMessages = payload.filter((m) => m instanceof RemoveMessage);
+    expect(removeMessages.length).toBeGreaterThan(0);
 
-    // No orphaned ToolMessage (i.e. every ToolMessage is preceded by an AI msg with tool_calls)
-    for (let i = 0; i < replacement.length; i++) {
-      if (replacement[i] instanceof ToolMessage) {
-        const prev = replacement[i - 1];
-        expect(prev).toBeInstanceOf(AIMessage);
-        expect((prev as AIMessage).tool_calls?.length).toBeGreaterThan(0);
-      }
+    const nonRemove = payload.filter((m) => !(m instanceof RemoveMessage));
+    expect(nonRemove).toHaveLength(2);
+    expect(nonRemove[0]).toBeInstanceOf(HumanMessage);
+    expect((nonRemove[0] as HumanMessage).content).toBe('Previous conversation summary:');
+    expect(nonRemove[1]).toBeInstanceOf(AIMessage);
+
+    // Snap: windowEnd snaps from 6 back to 4 (HumanMessage).
+    // windowStart=1 (system at 0), toCompact = messages[1..3] → ids id-1, id-2, id-3
+    const removedIds = new Set(removeMessages.map((m) => (m as RemoveMessage).id));
+    expect(removedIds.has('id-1')).toBe(true);
+    expect(removedIds.has('id-2')).toBe(true);
+    expect(removedIds.has('id-3')).toBe(true);
+    // system + tail messages must NOT be in removed set
+    expect(removedIds.has('id-0')).toBe(false);
+    for (const tailId of ['id-4', 'id-5', 'id-6', 'id-7', 'id-8', 'id-9']) {
+      expect(removedIds.has(tailId)).toBe(false);
     }
   });
 
@@ -363,21 +382,21 @@ describe('maybeCompact', () => {
     // indices: 0  1  2  3  4             5     6   7  8   9  10
     // With keepRecent=5: initial windowEnd = 11-5 = 6 → messages[6] = AIMessage (no tool_calls).
     // Should snap back to index 3 (HumanMessage), compacting indices 1..2 = 2 messages.
-    const toolMsg = new ToolMessage({ content: 'out', tool_call_id: 'c1' });
-    const aiWithTool = new AIMessage({ content: '', tool_calls: [{ id: 'c1', name: 'fn', args: {} }] });
+    const toolMsg = new ToolMessage({ content: 'out', tool_call_id: 'c1', id: 'id-5' });
+    const aiWithTool = new AIMessage({ content: '', id: 'id-4', tool_calls: [{ id: 'c1', name: 'fn', args: {} }] });
 
     const messages: BaseMessage[] = [
-      new SystemMessage('sys'),    // 0
-      new HumanMessage('a'),       // 1
-      new AIMessage('b'),          // 2
-      new HumanMessage('c'),       // 3
+      new SystemMessage({ content: 'sys', id: 'id-0' }),
+      new HumanMessage({ content: 'a', id: 'id-1' }),
+      new AIMessage({ content: 'b', id: 'id-2' }),
+      new HumanMessage({ content: 'c', id: 'id-3' }),
       aiWithTool,                  // 4
       toolMsg,                     // 5
-      new AIMessage('d'),          // 6  ← initial windowEnd lands here
-      new HumanMessage('e'),       // 7
-      new AIMessage('f'),          // 8
-      new HumanMessage('g'),       // 9
-      new AIMessage('h'),          // 10
+      new AIMessage({ content: 'd', id: 'id-6' }),  // ← initial windowEnd
+      new HumanMessage({ content: 'e', id: 'id-7' }),
+      new AIMessage({ content: 'f', id: 'id-8' }),
+      new HumanMessage({ content: 'g', id: 'id-9' }),
+      new AIMessage({ content: 'h', id: 'id-10' }),
     ];
     const agent = makeAgent(messages);
     const model = makeModel(new AIMessage('summary'));
@@ -389,18 +408,25 @@ describe('maybeCompact', () => {
     });
 
     expect(result.compacted).toBe(true);
+    // Snap: windowEnd snaps from 6 to 3 (HumanMessage 'c').
+    // toCompact = messages[1..2] = id-1, id-2
+    expect(result.removedCount).toBe(2);
 
     const [, updateValues] = agent.updateState.mock.calls[0] as [RunnableConfig, { messages: BaseMessage[] }, string];
-    const replacement = updateValues.messages;
+    const payload = updateValues.messages;
 
-    // Every ToolMessage in replacement must be preceded by an AI with tool_calls
-    for (let i = 0; i < replacement.length; i++) {
-      if (replacement[i] instanceof ToolMessage) {
-        const prev = replacement[i - 1];
-        expect(prev).toBeInstanceOf(AIMessage);
-        expect((prev as AIMessage).tool_calls?.length).toBeGreaterThan(0);
-      }
-    }
+    const removeMessages = payload.filter((m) => m instanceof RemoveMessage);
+    expect(removeMessages).toHaveLength(2);
+
+    const removedIds = new Set(removeMessages.map((m) => (m as RemoveMessage).id));
+    expect(removedIds.has('id-1')).toBe(true);
+    expect(removedIds.has('id-2')).toBe(true);
+    // The tool-call pair (id-4, id-5) must NOT be removed — they are in the kept tail
+    expect(removedIds.has('id-4')).toBe(false);
+    expect(removedIds.has('id-5')).toBe(false);
+
+    // Payload contains no ToolMessages (only RemoveMessages + summary pair)
+    expect(payload.some((m) => m instanceof ToolMessage)).toBe(false);
   });
 
   it('returns { compacted: false } when no safe HumanMessage boundary exists after snapping', async () => {

@@ -201,8 +201,9 @@ export function renderMarkdown(text: string): string {
 
 // ─── Compaction notice ────────────────────────────────────────────────────────
 
-export function renderCompacted(removedCount: number): void {
-  println(chalk.dim(`⟳ context compacted — ${removedCount} message${removedCount !== 1 ? 's' : ''} summarised`));
+export function renderCompacted(removedCount: number, newTokens?: number): void {
+  const tokenPart = newTokens !== undefined ? `  ${newTokens.toLocaleString()} tokens` : '';
+  println(chalk.dim(`⟳ context compacted — ${removedCount} message${removedCount !== 1 ? 's' : ''} summarised${tokenPart}`));
 }
 
 export function renderCompactSkipped(): void {
@@ -217,6 +218,7 @@ export function renderError(message: string): void {
 
 // ─── Session exit ─────────────────────────────────────────────────────────────
 
-export function renderSessionExit(threadId: string): void {
-  println(chalk.dim('session  ') + chalk.white(threadId));
+export function renderSessionExit(threadId: string, tokens?: number): void {
+  const tokenPart = tokens !== undefined ? chalk.dim(`  ${tokens.toLocaleString()} tokens`) : '';
+  println(chalk.dim('session  ') + chalk.white(threadId) + tokenPart);
 }

@@ -12,7 +12,7 @@
  * automatically.
  */
 
-import { HumanMessage, SystemMessage, type BaseMessage } from '@langchain/core/messages';
+import { RemoveMessage, HumanMessage, SystemMessage, type BaseMessage } from '@langchain/core/messages';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { createLogger } from 'core';
@@ -137,7 +137,6 @@ export async function maybeCompact(
   }
 
   const toCompact = messages.slice(windowStart, windowEnd);
-  const toKeep = messages.slice(windowEnd);
   const removedCount = toCompact.length;
 
   logger.debug('compacting', { tokens, messageCount: messages.length, removedCount });
@@ -152,20 +151,23 @@ export async function maybeCompact(
     ),
   ]);
 
-  // Build the replacement message list
-  const replacement: BaseMessage[] = [
-    ...(systemMsg ? [systemMsg] : []),
+  // Remove compacted messages by ID, then insert the summary pair.
+  // systemMsg and toKeep remain in state untouched — only toCompact is removed.
+  const toRemove = toCompact.map((m) => new RemoveMessage({ id: m.id! }));
+  const summaryPair: BaseMessage[] = [
     new HumanMessage('Previous conversation summary:'),
     summaryResponse,
-    ...toKeep,
   ];
 
-  // Write the replacement back into the graph state
-  await agent.graph.updateState(config, { messages: replacement }, 'model_request');
+  await agent.graph.updateState(
+    config,
+    { messages: [...toRemove, ...summaryPair] },
+    'model_request',
+  );
 
   logger.debug('compaction complete', {
     removedCount,
-    newMessageCount: replacement.length,
+    newMessageCount: summaryPair.length,
   });
 
   return { compacted: true, removedCount };

@@ -66,7 +66,7 @@ export function createSpawnAgentTool(
           ? allTools
           : allTools.filter((t) => requestedNames.includes(t.name));
 
-      const maxIterations = args.maxIterations ?? 20;
+      const maxIterations = args.maxIterations ?? 50;
 
       logger.debug('spawning child agent', {
         toolCount: childTools.length,

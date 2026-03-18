@@ -301,7 +301,7 @@ async function runAgent(
   const compResult = opts.compact
     ? await maybeCompact(graph, config, model, { tokenThreshold: 0, messageThreshold: 0 })
     : await maybeCompact(graph, config, model);
-  if (compResult.compacted) renderCompacted(compResult.removedCount);
+  if (compResult.compacted) renderCompacted(compResult.removedCount, await getContextTokens());
 
   await runExchange({ prompt, messages: seedMessages, graph, cwd, config });
 
@@ -315,7 +315,7 @@ async function runAgent(
       if (next === '/compact') {
         const cr = await maybeCompact(graph, config, model, { tokenThreshold: 0, messageThreshold: 0 });
         if (cr.compacted) {
-          renderCompacted(cr.removedCount);
+          renderCompacted(cr.removedCount, await getContextTokens());
         } else {
           renderCompactSkipped();
         }
@@ -325,13 +325,13 @@ async function runAgent(
       renderHeader({ ...headerBase, prompt: next, contextTokens: await getContextTokens() });
 
       const cr = await maybeCompact(graph, config, model);
-      if (cr.compacted) renderCompacted(cr.removedCount);
+      if (cr.compacted) renderCompacted(cr.removedCount, await getContextTokens());
 
       await runExchange({ prompt: next, messages: [], graph, cwd, config });
     }
   }
 
-  renderSessionExit(threadId);
+  renderSessionExit(threadId, await getContextTokens());
 }
 
 const program = new Command()
