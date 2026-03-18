@@ -246,7 +246,7 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
 
 async function runAgent(
   promptArg: string | undefined,
-  opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined; compact: boolean; workspaceDir: string | undefined },
+  opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined; compact: boolean; workspaceDir: string | undefined; kvPassphrase: string },
 ): Promise<void> {
   const cwd = opts.workspaceDir ? resolve(process.cwd(), opts.workspaceDir) : process.cwd();
   const model = getModelInstance();
@@ -266,6 +266,8 @@ async function runAgent(
     configurable: {
       thread_id: threadId,
       workspaceDir: cwd,
+      kvStorePath: join(sessionsDir, 'kv-store.json'),
+      kvPassphrase: opts.kvPassphrase,
     },
   };
 
@@ -343,8 +345,9 @@ const program = new Command()
   .option('-p, --system-prompt <file>', 'Path to system prompt file (default: built-in SYSTEM.md)')
   .option('--compact', 'Force compact the session context before the first exchange', false)
   .option('-w, --workspace-dir <path>', 'Workspace directory for file tools (default: current directory)')
+  .option('--kv-passphrase <passphrase>', 'Passphrase for the encrypted key-value store', 'default')
   .argument('[prompt]', 'Prompt to run (reads stdin if omitted)')
-  .action(async (promptArg: string | undefined, opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined; compact: boolean; workspaceDir: string | undefined }) => {
+  .action(async (promptArg: string | undefined, opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined; compact: boolean; workspaceDir: string | undefined; kvPassphrase: string }) => {
     await runAgent(promptArg, opts);
   });
 

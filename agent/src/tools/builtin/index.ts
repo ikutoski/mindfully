@@ -11,6 +11,7 @@ import { createWebFetchTool } from './web-fetch.js';
 import { createProcessTool } from './process.js';
 import { createImageTool } from './image.js';
 import { createSpawnAgentTool } from './spawn-agent.js';
+import { createKvStoreTool } from './kv-store.js';
 
 export { createReadTool } from './read.js';
 export { createWriteTool } from './write.js';
@@ -25,6 +26,7 @@ export { ProcessRegistry } from './process-registry.js';
 export { createImageTool } from './image.js';
 export type { VisionProvider } from './image.js';
 export { createSpawnAgentTool } from './spawn-agent.js';
+export { createKvStoreTool } from './kv-store.js';
 
 export function createBuiltinTools(subAgentModel?: BaseChatModel) {
   const baseTools: StructuredToolInterface[] = [
@@ -38,6 +40,7 @@ export function createBuiltinTools(subAgentModel?: BaseChatModel) {
     createWebFetchTool(),
     createProcessTool(),
     createImageTool(),
+    createKvStoreTool(),
   ];
   if (subAgentModel) baseTools.push(createSpawnAgentTool(subAgentModel, baseTools));
   return baseTools;
@@ -45,6 +48,6 @@ export function createBuiltinTools(subAgentModel?: BaseChatModel) {
 
 export const builtinToolNames = [
   'read', 'write', 'edit', 'bash', 'http', 'web_search',
-  'glob', 'web_fetch', 'process', 'image', 'spawn_agent',
+  'glob', 'web_fetch', 'process', 'image', 'spawn_agent', 'kv_store',
 ] as const;
 export type BuiltinToolName = typeof builtinToolNames[number];
