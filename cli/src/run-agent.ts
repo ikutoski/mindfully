@@ -181,7 +181,7 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
       if (mode === 'messages') {
         const [msgChunk, metadata] = chunk as [AIMessageChunk, Record<string, unknown>];
         if(msgChunk.tool_calls?.length || 0 > 0) {
-          
+          println();
           println(formatNotice('Calling Tools', `(${msgChunk.tool_calls!.map((tc) => tc.name).join(', ')})`));
           // println(`\ncalling tools ${msgChunk.tool_calls!.map((tc) => tc.name).join(',')}`); 
           continue;
@@ -246,9 +246,9 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
 
 async function runAgent(
   promptArg: string | undefined,
-  opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined; compact: boolean },
+  opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined; compact: boolean; workspaceDir: string | undefined },
 ): Promise<void> {
-  const cwd = process.cwd();
+  const cwd = opts.workspaceDir ? resolve(process.cwd(), opts.workspaceDir) : process.cwd();
   const model = getModelInstance();
   const toolsModel = getModelInstance({ streaming: false }); // separate non-streaming instance for tools to avoid interleaved output
   const tools = createBuiltinTools(toolsModel);
@@ -342,8 +342,9 @@ const program = new Command()
   .option('-s, --session <name>', 'Session name / thread ID (omit for a fresh random ID)')
   .option('-p, --system-prompt <file>', 'Path to system prompt file (default: built-in SYSTEM.md)')
   .option('--compact', 'Force compact the session context before the first exchange', false)
+  .option('-w, --workspace-dir <path>', 'Workspace directory for file tools (default: current directory)')
   .argument('[prompt]', 'Prompt to run (reads stdin if omitted)')
-  .action(async (promptArg: string | undefined, opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined; compact: boolean }) => {
+  .action(async (promptArg: string | undefined, opts: { interactive: boolean; session: string | undefined; systemPrompt: string | undefined; compact: boolean; workspaceDir: string | undefined }) => {
     await runAgent(promptArg, opts);
   });
 
