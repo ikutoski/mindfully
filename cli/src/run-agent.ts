@@ -186,7 +186,11 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
         }
       }
 
-      // ── updates: complete tool calls ─────────────────────────────────────
+      if(mode === 'updates') {
+        if (AIMessage.isInstance(chunk) && chunk.tool_calls?.length || 0 > 0) { 
+          println(`\ntoolcall(s) ${toolCalls.map((tc) => tc.name).join(',')} `);
+        }
+      }
     
 
       // ── values: capture final state ──────────────────────────────────────
@@ -199,7 +203,7 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
           const toolCalls: Array<{ name: string; args: Record<string, unknown>; id?: string }>
             = aiMessage?.tool_calls ?? [];
           if (toolCalls.length > 0) {
-            println(`\ntoolcall(s) ${toolCalls.map((tc) => tc.name).join(',')} `);
+            
             for (const tc of toolCalls) {
               toolRenderer.addTool(tc.id ?? tc.name, tc.name, tc.args ?? {});
             }

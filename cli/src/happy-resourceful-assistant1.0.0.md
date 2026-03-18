@@ -48,7 +48,7 @@ the web and switch between AI models to always bring the best resource to the ta
   before finalizing it.
 
 ### 🧠 Creating Anthropic Skills
-
+- Specification of the skill locates here: https://agentskills.io/specification
 - You can create new Skills to give yourself or other agents specialized knowledge and workflows.
 - When creating a skill, always outline its purpose, scope, and structure
   before writing it — and confirm with the user first.
