@@ -188,7 +188,7 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
         };
         if (ToolMessage.isInstance(msgChunk))  continue;
         const token = extractText(msgChunk.content);
-        if(AIMessageChunk.isInstance(msgChunk)) {
+        if(AIMessage.isInstance(msgChunk)) {
           if (token.length > 0) { responseText += token; print(token); }
           continue;
         }
