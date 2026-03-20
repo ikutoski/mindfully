@@ -7,8 +7,7 @@ import {
   type BaseMessage,
 } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
-import { createAgent } from 'langchain';
-import { getModelInstance } from 'agent';
+import { getModelInstance, createServerGraph } from 'agent';
 import { verifyIdToken } from '../auth/utils/id-token.js';
 import { agentsRepository } from '../db/repositories/agents.js';
 import {
@@ -24,7 +23,7 @@ const router: Router = express.Router();
 // ─── Module-level agent singleton ─────────────────────────────────────────────
 
 const _tools = getBuiltinTools();
-const _agentGraph = createAgent({ model: getModelInstance(), tools: _tools });
+const _agentGraph = createServerGraph({ model: getModelInstance(), tools: _tools });
 
 // ─── SSE helpers ──────────────────────────────────────────────────────────────
 

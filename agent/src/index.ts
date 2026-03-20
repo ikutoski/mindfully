@@ -3,6 +3,9 @@ import { createLogger } from 'core';
 
 export * from './tools/index.js';
 export * from './tools/builtin/index.js';
+export * from './compactor.js';
+export * from './checkpointer.js';
+export * from './graph/index.js';
 
 const logger = createLogger('agent');
 
@@ -23,7 +26,7 @@ export function getModelInstance(opts: { streaming?: boolean } = { streaming: tr
     configuration: {
       baseURL: process.env['LLM_BASE_URL'] ?? 'https://opencode.ai/zen/v1',
     },
-    maxTokens: parseInt(process.env['LLM_MAX_TOKENS'] ?? '4096', 10),
+    maxTokens: parseInt(process.env['LLM_MAX_TOKENS'] ?? '88888', 10),
     ...opts,
   };
   logger.debug('Creating OpenAI model instance with config', providerOpts);

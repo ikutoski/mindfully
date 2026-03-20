@@ -86,9 +86,9 @@ export async function maybeCompact(
   opts: CompactionOptions = {},
 ): Promise<CompactionResult> {
   const {
-    tokenThreshold = 50_000,
-    messageThreshold = 20,
-    keepRecent = 6,
+    tokenThreshold = 88_888,
+    messageThreshold = 40,
+    keepRecent = 20,
   } = opts;
 
   // Read current state from the checkpointer

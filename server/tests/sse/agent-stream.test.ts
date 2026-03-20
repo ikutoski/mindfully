@@ -64,9 +64,7 @@ vi.mock('../../src/db/repositories/executions.js', () => ({
 }));
 vi.mock('agent', () => ({
   getModelInstance: vi.fn().mockReturnValue({}),
-}));
-vi.mock('langchain', () => ({
-  createAgent: mockCreateAgent,
+  createServerGraph: mockCreateAgent,
 }));
 vi.mock('../../src/tools/index.js', () => ({
   getBuiltinTools: vi.fn().mockReturnValue([]),

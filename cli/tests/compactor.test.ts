@@ -3,7 +3,7 @@ import { HumanMessage, AIMessage, SystemMessage, ToolMessage, RemoveMessage } fr
 import type { BaseMessage } from '@langchain/core/messages';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
-import { estimateTokens, maybeCompact } from '../src/compactor.js';
+import { estimateTokens, maybeCompact } from 'agent';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

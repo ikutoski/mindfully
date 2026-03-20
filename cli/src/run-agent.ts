@@ -17,11 +17,9 @@
 
 import * as readline from 'node:readline';
 import { readFile } from 'node:fs/promises';
-import { mkdirSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve, join, format } from 'node:path';
-import { homedir } from 'node:os';
+import { dirname, resolve, join } from 'node:path';
 import {
   HumanMessage,
   SystemMessage,
@@ -32,9 +30,15 @@ import {
 } from '@langchain/core/messages';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { Command } from 'commander';
-import { SqliteSaver } from '@langchain/langgraph-checkpoint-sqlite';
-import { createAgent, Tool } from 'langchain';
-import { getModelInstance, createBuiltinTools } from 'agent';
+import {
+  getModelInstance,
+  createBuiltinTools,
+  createCliGraph,
+  createCheckpointer,
+  defaultSessionsDir,
+  maybeCompact,
+  estimateTokens,
+} from 'agent';
 import { createLogger } from 'core';
 import {
   print,
@@ -48,9 +52,6 @@ import {
   ConcurrentToolRenderer,
   formatNotice,
 } from './render.js';
-import { maybeCompact, estimateTokens } from './compactor.js';
-import { get } from 'node:http';
-import { ms } from 'zod/v4/locales';
 
 const logger = createLogger('cli');
 
@@ -58,11 +59,6 @@ const logger = createLogger('cli');
 
 function getModelName(): string {
   return process.env['LLM_MODEL'] ?? 'unknown';
-}
-
-/** Directory where per-session SQLite databases are stored. */
-function defaultSessionsDir(): string {
-  return join(homedir(), '.mindful', 'sessions');
 }
 
 function extractText(content: unknown): string {
@@ -92,14 +88,6 @@ function countRows(text: string, termCols: number): number {
     rows += Math.max(1, Math.ceil(line.length / termCols));
   }
   return rows;
-}
-
-/** Erase streamed raw text and reprint as rendered Markdown (TTY only). */
-function replaceStreamedLines(streamed: string, rendered: string): void {
-  if (!process.stdout.isTTY) return;
-  const rows = countRows(streamed, process.stdout.columns || 80);
-  process.stdout.write(`\x1b[${rows}A\x1b[J`);
-  process.stdout.write(rendered);
 }
 
 // ─── Stdin helpers ────────────────────────────────────────────────────────────
@@ -136,7 +124,7 @@ async function readInteractiveLine(prefix: string): Promise<string | null> {
 export interface RunExchangeOpts {
   prompt: string;
   messages: BaseMessage[];
-  graph: ReturnType<typeof createAgent>;
+  graph: ReturnType<typeof createCliGraph>;
   cwd: string;
   config?: RunnableConfig;
 }
@@ -234,11 +222,6 @@ export async function runExchange(opts: RunExchangeOpts): Promise<BaseMessage[]>
     toolRenderer.stop();
   }
 
-  // Replace streamed raw text with rendered Markdown in-place.
-  if (responseText.length > 0) {
-    replaceStreamedLines(responseText, renderMarkdown(responseText));
-  }
-
   return finalMessages;
 }
 
@@ -258,9 +241,8 @@ async function runAgent(
   const threadId = opts.session ?? randomBytes(4).toString('hex');
 
   const sessionsDir = defaultSessionsDir();
-  mkdirSync(sessionsDir, { recursive: true });
-  const checkpointer = SqliteSaver.fromConnString(join(sessionsDir, `${threadId}.db`));
-  const graph = createAgent({ model, tools, checkpointer });
+  const checkpointer = createCheckpointer(threadId, sessionsDir);
+  const graph = createCliGraph({ model, tools, checkpointer });
 
   const config: RunnableConfig = {
     configurable: {
