@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Monitor, Smartphone, Laptop, Tablet, Trash2, LogOut, AlertCircle } from "lucide-react";
 import { useAuth } from "../../lib/hooks/useAuth";
-
 import { useNavigate } from "react-router-dom";
+import { Tooltip } from "../../components/ui/Tooltip";
 
 interface Session {
   id: string;
@@ -243,14 +243,15 @@ export function SessionsPage() {
                       {formatExpiry(session.expiresAt)}
                     </p>
                   </div>
-                  <button
-                    onClick={() => handleTerminateSession(session.id)}
-                    disabled={terminating !== null}
-                    className="flex-shrink-0 rounded p-2 text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-50"
-                    title="Terminate session"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <Tooltip content="Terminate session">
+                    <button
+                      onClick={() => handleTerminateSession(session.id)}
+                      disabled={terminating !== null}
+                      className="flex-shrink-0 rounded p-2 text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
             ))}

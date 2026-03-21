@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Plus, Bot, Settings, Trash2, Loader2, Play } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "../../lib/api";
+import { Tooltip } from "../../components/ui/Tooltip";
 
 interface Agent {
   id: string;
@@ -115,32 +116,35 @@ export function AgentsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Link
-                    to={`/agents/${agent.id}/run`}
-                    className="p-2 hover:bg-[rgba(181,255,24,0.08)] rounded-md transition-colors"
-                    title="Run agent"
-                  >
-                    <Play className="h-4 w-4 text-green-400" />
-                  </Link>
-                  <Link
-                    to={`/agents/${agent.id}`}
-                    className="p-2 hover:bg-[rgba(181,255,24,0.08)] rounded-md transition-colors"
-                    title="Settings"
-                  >
-                    <Settings className="h-4 w-4 text-muted-foreground" />
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(agent.id)}
-                    disabled={deleting === agent.id}
-                    className="p-2 hover:bg-red-500/10 rounded-md transition-colors disabled:opacity-50"
-                    title="Delete"
-                  >
-                    {deleting === agent.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-red-400" />
-                    ) : (
-                      <Trash2 className="h-4 w-4 text-red-400" />
-                    )}
-                  </button>
+                  <Tooltip content="Run agent">
+                    <Link
+                      to={`/agents/${agent.id}/run`}
+                      className="p-2 hover:bg-[rgba(181,255,24,0.08)] rounded-md transition-colors"
+                    >
+                      <Play className="h-4 w-4 text-green-400" />
+                    </Link>
+                  </Tooltip>
+                  <Tooltip content="Settings">
+                    <Link
+                      to={`/agents/${agent.id}`}
+                      className="p-2 hover:bg-[rgba(181,255,24,0.08)] rounded-md transition-colors"
+                    >
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                    </Link>
+                  </Tooltip>
+                  <Tooltip content="Delete">
+                    <button
+                      onClick={() => handleDelete(agent.id)}
+                      disabled={deleting === agent.id}
+                      className="p-2 hover:bg-red-500/10 rounded-md transition-colors disabled:opacity-50"
+                    >
+                      {deleting === agent.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-red-400" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 text-red-400" />
+                      )}
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
               

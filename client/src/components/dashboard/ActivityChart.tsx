@@ -19,6 +19,31 @@ const data = [
   { time: "24:00", tasks: 18, agents: 4 },
 ];
 
+interface TooltipPayloadItem {
+  name: string;
+  value: number;
+  color: string;
+}
+
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipPayloadItem[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      className="bg-[#0e0e0e] border border-[rgba(255,255,255,0.07)] px-2.5 py-2 shadow-xl shadow-black/50 font-mono space-y-1.5"
+      style={{ minWidth: 140, borderRadius: 2 }}
+    >
+      <div className="text-[9px] uppercase tracking-[0.18em] text-[rgba(255,255,255,0.3)] pb-0.5 border-b border-[rgba(255,255,255,0.06)]">{label}</div>
+      {payload.map((item) => (
+        <div key={item.name} className="flex items-center gap-1.5 text-xs">
+          <span className="text-[#b5ff18] leading-none">$</span>
+          <span className="text-[rgba(255,255,255,0.45)] capitalize">{item.name}</span>
+          <span className="ml-auto pl-4 tabular-nums text-[#e0e0e0]">{item.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ActivityChart() {
   return (
     <motion.div
@@ -77,23 +102,7 @@ export function ActivityChart() {
                 tickLine={false}
                 axisLine={false}
               />
-              <Tooltip
-                contentStyle={{
-                  background: "#0d0d0d",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: "2px",
-                }}
-                labelStyle={{
-                  color: "#e0e0e0",
-                  fontFamily: "Space Mono",
-                  fontSize: 11,
-                }}
-                itemStyle={{
-                  color: "rgba(255,255,255,0.55)",
-                  fontFamily: "Space Mono",
-                  fontSize: 11,
-                }}
-              />
+              <Tooltip content={<ChartTooltip />} />
               <Area
                 type="monotone"
                 dataKey="tasks"

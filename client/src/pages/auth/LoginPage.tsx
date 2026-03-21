@@ -4,6 +4,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { PasswordStrengthIndicator } from "../../components/auth/PasswordStrengthIndicator";
 import { createTimeline } from "animejs";
+import { Tooltip } from "../../components/ui/Tooltip";
 
 export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +17,20 @@ export function LoginPage() {
   const location = useLocation();
   const { setIdToken } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const [validationField, setValidationField] = useState<"email" | "password" | null>(null);
+  const [validationMsg, setValidationMsg] = useState("");
+  const validationTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const showValidation = (field: "email" | "password", msg: string) => {
+    setValidationField(field);
+    setValidationMsg(msg);
+    clearTimeout(validationTimerRef.current);
+    validationTimerRef.current = setTimeout(() => {
+      setValidationField(null);
+      setValidationMsg("");
+    }, 2500);
+  };
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
 
@@ -51,6 +66,11 @@ export function LoginPage() {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!email.trim()) return showValidation("email", "Email is required");
+    if (!password.trim()) return showValidation("password", "Password is required");
+    if (isRegistering && password.length < 8) return showValidation("password", "Min 8 characters");
+
     setIsLoading(true);
     setError("");
 
@@ -150,7 +170,7 @@ export function LoginPage() {
             </div>
           </div>
 
-          <form onSubmit={handleEmailAuth} className="space-y-4">
+          <form onSubmit={handleEmailAuth} className="space-y-4" noValidate>
             {isRegistering && (
               <div className="space-y-1">
                 <label htmlFor="auth-name" className="sr-only">Name (optional)</label>
@@ -171,38 +191,40 @@ export function LoginPage() {
 
             <div className="space-y-1">
               <label htmlFor="auth-email" className="sr-only">Email address</label>
-              <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(181,255,24,0.3)] transition-[border-color] duration-200">
-                <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
-                <input
-                  id="auth-email"
-                  type="email"
-                  placeholder="Email address…"
-                  autoComplete="email"
-                  spellCheck={false}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] placeholder:text-[rgba(255,255,255,0.2)] focus-visible:outline-none"
-                />
-              </div>
+              <Tooltip content={validationField === "email" ? validationMsg : ""} side="top" open={validationField === "email"} fullWidth>
+                <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(181,255,24,0.3)] transition-[border-color] duration-200">
+                  <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <input
+                    id="auth-email"
+                    type="email"
+                    placeholder="Email address…"
+                    autoComplete="email"
+                    spellCheck={false}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] placeholder:text-[rgba(255,255,255,0.2)] focus-visible:outline-none"
+                  />
+                </div>
+              </Tooltip>
             </div>
 
             <div className="space-y-1">
               <label htmlFor="auth-password" className="sr-only">Password</label>
-              <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(181,255,24,0.3)] transition-[border-color] duration-200">
-                <Lock className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
-                <input
-                  id="auth-password"
-                  type="password"
-                  placeholder="Password…"
-                  autoComplete={isRegistering ? "new-password" : "current-password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] placeholder:text-[rgba(255,255,255,0.2)] focus-visible:outline-none"
-                />
-              </div>
+              <Tooltip content={validationField === "password" ? validationMsg : ""} side="top" open={validationField === "password"} fullWidth>
+                <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(181,255,24,0.3)] transition-[border-color] duration-200">
+                  <Lock className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <input
+                    id="auth-password"
+                    type="password"
+                    placeholder="Password…"
+                    autoComplete={isRegistering ? "new-password" : "current-password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    minLength={8}
+                    className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] placeholder:text-[rgba(255,255,255,0.2)] focus-visible:outline-none"
+                  />
+                </div>
+              </Tooltip>
             </div>
 
             {isRegistering && password && (
