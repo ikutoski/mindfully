@@ -31,8 +31,12 @@ const strategy = new LocalStrategy(
         return done(null, false, { message: 'Invalid email or password' });
       }
 
-      // Check if email is verified
-      if (!user.email_verified) {
+      // Skip email verification in dev/console-email mode
+      const skipVerification =
+        process.env.NODE_ENV === 'development' ||
+        process.env.EMAIL_PROVIDER === 'console';
+
+      if (!user.email_verified && !skipVerification) {
         return done(null, false, { 
           message: 'Please verify your email address before logging in' 
         });

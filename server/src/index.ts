@@ -18,10 +18,20 @@ const PORT = process.env.PORT || 3000;
 // Initialize email service
 initEmailService();
 
+const devOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173'];
+const networkIp = process.env.DEV_HOST ? `http://${process.env.DEV_HOST}:5173` : null;
+if (networkIp) devOrigins.push(networkIp);
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.BASE_URL 
-    : 'http://localhost:5173',
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.BASE_URL
+    : (origin, cb) => {
+        if (!origin || devOrigins.includes(origin) || /^http:\/\/192\.168\.\d+\.\d+:517[34]$/.test(origin)) {
+          cb(null, true);
+        } else {
+          cb(new Error(`CORS: ${origin} not allowed`));
+        }
+      },
   credentials: true,
 }));
 

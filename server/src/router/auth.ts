@@ -90,15 +90,19 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid password', details: pwdValidation.errors });
     }
 
+    const devMode = process.env.NODE_ENV === 'development' || process.env.EMAIL_PROVIDER === 'console';
+
     const user = await usersRepository.create({
       email: data.email,
       passwordHash: await passwordUtils.hash(data.password),
       name: data.name,
-      emailVerified: false,
+      emailVerified: devMode,
     });
 
     res.status(201).json({
-      message: 'Registration successful. You can verify your email by signing in with GitHub or Google.',
+      message: devMode
+        ? 'Registration successful. You can now sign in.'
+        : 'Registration successful. Please check your email to verify your account.',
       userId: user.id,
     });
   } catch (error) {

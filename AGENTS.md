@@ -194,6 +194,127 @@ export function UserCard({ user, onEdit }: UserCardProps) {
 }
 ```
 
+### Frontend Design System
+
+The client uses a **Precision Black** theme inspired by [superior.trade](https://www.superior.trade/). All UI work must follow these rules strictly.
+
+#### Color Palette
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| Background | `#0a0a0a` | Page / app background |
+| Card bg | `#0e0e0e` | Cards, panels, dropdowns |
+| Text primary | `#e0e0e0` | Body text |
+| Text heading | `#ffffff` | h1/h2 |
+| Text muted | `rgba(255,255,255,0.45)` | Secondary labels |
+| Text very muted | `rgba(255,255,255,0.28)` | Timestamps, footers |
+| **Accent (lime)** | `#b5ff18` | CTAs, active state, links, running status |
+| Accent bg | `rgba(181,255,24,0.08–0.15)` | Accent tinted backgrounds |
+| Accent border | `rgba(181,255,24,0.25)` | Active nav border, primary button border |
+| Border default | `rgba(255,255,255,0.07)` | All default borders |
+| Border hover | `rgba(255,255,255,0.14)` | Hover state borders |
+| Error | `rgb(239,68,68)` | Destructive actions |
+| Success | `rgb(74,222,128)` | Completed states |
+| Header bg | `rgba(10,10,10,0.95)` | Sticky header with backdrop blur |
+
+**CSS variables** (in `index.css`):
+```css
+--primary: 77 100% 55%;   /* lime #b5ff18 */
+--accent:  77 100% 55%;
+--background: 0 0% 4%;   /* #0a0a0a */
+--radius: 0.125rem;       /* 2px max */
+```
+
+#### Typography
+
+- **Font**: `Space Mono` (monospace) — the ONLY font used. No Orbitron, no Inter, no system fonts.
+- **Headings**: `font-bold tracking-tight text-white`
+- **Body**: `font-mono text-[#e0e0e0]`
+- **Labels / tags**: `text-[10px] tracking-[0.3em] uppercase text-[rgba(255,255,255,0.35)]` (use `.label-xs` class)
+- `font-display` class is aliased to Space Mono Bold for backward compat
+
+#### Borders & Radius
+
+- **Border radius**: `2px` maximum everywhere (`rounded-sm` in Tailwind). Buttons use `border-radius: 0` per superior.trade.
+- **Border width**: always `1px`
+- **Default border**: `rgba(255,255,255,0.07)` — set globally via `* { border-color: rgba(255,255,255,0.07) }`
+
+#### Elevation & Effects
+
+- **NO box-shadows** — not even subtle ones
+- **NO glow effects** — no `0 0 20px hsl(...)` type shadows
+- **NO background gradients** on UI elements — sidebar, header, cards all use flat solid colors
+- **NO grain overlay** — `.grain-overlay` class is display:none
+- **NO Orbitron** — do not import or use the Orbitron font
+
+#### Component Patterns
+
+```tsx
+// Card — flat, no shadow
+<div className="bg-[#0e0e0e] border border-[rgba(255,255,255,0.07)] rounded-sm p-4">
+
+// Primary button — lime accent
+<button className="auth-button-primary">  // or use CSS class
+
+// Ghost / secondary button
+<button className="btn-cyber">  // neutral border, transparent bg
+
+// Active nav item
+<Link className="bg-[rgba(181,255,24,0.08)] text-[#b5ff18] border border-[rgba(181,255,24,0.2)]">
+
+// Inactive nav item
+<Link className="text-[rgba(255,255,255,0.45)] hover:text-[#e0e0e0] hover:bg-[rgba(255,255,255,0.04)]">
+
+// Status dot — running
+<span className="status-dot running" />  // lime + pulse animation
+
+// Label / tag
+<span className="label-xs">Status</span>
+```
+
+#### CSS Utility Classes (defined in `client/src/styles/`)
+
+| Class | Description |
+|-------|-------------|
+| `.card-cyber` | Flat `#0e0e0e` card with `rgba(255,255,255,0.07)` border |
+| `.btn-cyber` | Neutral ghost icon button |
+| `.btn-cyber-sm/md/lg` | Sized icon buttons |
+| `.icon-wrap` | Neutral icon container |
+| `.label-xs` | 10px uppercase tracking label |
+| `.status-dot` | 6px status indicator dot |
+| `.auth-button` | Ghost auth form button |
+| `.auth-button-primary` | Lime primary auth button |
+| `.auth-input` | Flat auth text input |
+| `.agent-card` | Dashboard agent card |
+| `.feed-card` | Activity feed card |
+| `.text-gradient-cyber` | Lime text (backward compat — no gradient) |
+| `.text-cyber` | Lime `#b5ff18` text |
+
+#### Navigation Active State
+
+`Sidebar.tsx` uses `useLocation()` for active detection:
+- `/` → exact match only
+- All other routes → `pathname.startsWith(href)`
+
+Active: `bg-[rgba(181,255,24,0.08)] text-[#b5ff18] border-[rgba(181,255,24,0.2)]`
+Inactive: `text-[rgba(255,255,255,0.45)] hover:text-[#e0e0e0]`
+
+#### Tailwind v4 @apply Rules
+
+In Tailwind v4, `@apply` of custom CSS classes defined in the same file is **not allowed**. Always inline the shared properties instead:
+
+```css
+/* ❌ Wrong — will throw "Cannot apply unknown utility class" */
+.btn-cyber-sm { @apply btn-cyber h-8 w-8; }
+
+/* ✅ Correct — inline the properties */
+.btn-cyber-sm {
+  @apply flex items-center justify-center h-8 w-8 transition-colors duration-150;
+  border-radius: 2px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+```
+
 ### tRPC Procedures
 
 Define procedures following RESTful conventions:
