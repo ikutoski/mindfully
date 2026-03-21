@@ -36,7 +36,20 @@ export function AgentTree() {
           Agent Hierarchy
         </h3>
         <div className="h-48 md:h-72 overflow-hidden rounded-sm relative">
-          <svg width="100%" height="100%" viewBox="0 0 800 250" className="overflow-visible">
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 800 250"
+            role="img"
+            aria-labelledby="agent-tree-title"
+            aria-describedby="agent-tree-desc"
+            className="overflow-visible"
+          >
+            <title id="agent-tree-title">Agent Hierarchy</title>
+            <desc id="agent-tree-desc">
+              Orchestrator agent connected to Research, Builder, and Analyzer agents, each with tool sub-agents.
+              {nodes.filter(n => n.status === "running").length} agents currently running.
+            </desc>
             {nodes.map((node) =>
               node.connections.map((targetId) => {
                 const target = nodes.find((n) => n.id === targetId);
@@ -67,6 +80,8 @@ export function AgentTree() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.7 + index * 0.05, duration: 0.3 }}
                   className="cursor-pointer"
+                  role="img"
+                  aria-label={`${node.name} — ${node.role} — ${node.status}`}
                 >
                   <circle
                     cx={node.x} cy={node.y}

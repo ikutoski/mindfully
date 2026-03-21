@@ -73,7 +73,7 @@ export function Sidebar({
 
   return (
     <aside
-      className={`sidebar relative h-screen transition-all duration-300 ${
+      className={`sidebar relative h-screen transition-[width] duration-300 ${
         isCollapsed && !shouldShowExpanded ? "w-16" : "w-64"
       } ${isMobile ? "w-64" : ""}`}
     >
@@ -81,16 +81,17 @@ export function Sidebar({
         {isMobile && onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="flex h-8 w-8 items-center justify-center rounded-sm border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)]"
+            aria-label="Close navigation menu"
+            className="flex h-8 w-8 items-center justify-center rounded-sm border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b5ff18] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
           >
-            <X className="h-4 w-4 text-[rgba(255,255,255,0.6)]" />
+            <X className="h-4 w-4 text-[rgba(255,255,255,0.6)]" aria-hidden="true" />
           </button>
         )}
 
         {!isMobile && (
           <>
             {isCollapsed && !shouldShowExpanded ? (
-              <span className="mx-auto font-mono font-bold text-[#e0e0e0] tracking-tight">
+              <span className="mx-auto font-mono font-bold text-[#e0e0e0] tracking-tight" aria-label="Mindful">
                 M
               </span>
             ) : (
@@ -109,6 +110,7 @@ export function Sidebar({
       </div>
 
       <nav
+        aria-label="Main navigation"
         className="space-y-0.5 p-2 md:p-3"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -118,7 +120,9 @@ export function Sidebar({
             key={item.href}
             to={item.href}
             onClick={isMobile ? onCloseMobile : undefined}
-            className={`group relative flex items-center gap-3 px-3 py-2.5 text-xs font-mono uppercase tracking-wider transition-all duration-200 rounded-sm sidebar-nav-item ${
+            aria-label={isCollapsed && !shouldShowExpanded ? item.label : undefined}
+            aria-current={isActive(item.href) ? "page" : undefined}
+            className={`group relative flex items-center gap-3 px-3 py-2.5 text-xs font-mono uppercase tracking-wider transition-[background-color,border-color,color] duration-200 rounded-sm sidebar-nav-item focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b5ff18] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a] ${
               isActive(item.href)
                 ? "bg-[rgba(181,255,24,0.08)] text-[#b5ff18] border border-[rgba(181,255,24,0.2)]"
                 : "text-[rgba(255,255,255,0.45)] hover:text-[#e0e0e0] hover:bg-[rgba(255,255,255,0.04)] border border-transparent"
@@ -126,6 +130,7 @@ export function Sidebar({
             style={{ animationDelay: `${index * 50}ms` }}
           >
             <item.icon
+              aria-hidden="true"
               className={`h-4 w-4 shrink-0 transition-colors duration-200 ${
                 isActive(item.href)
                   ? "text-[#b5ff18]"
@@ -142,14 +147,16 @@ export function Sidebar({
       {!isMobile && (
         <button
           onClick={handleToggle}
-          className={`sidebar-toggle absolute bottom-4 flex h-8 w-8 items-center justify-center rounded-sm border transition-all duration-300 ${
+          aria-label={isCollapsed && !shouldShowExpanded ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!(isCollapsed && !shouldShowExpanded)}
+          className={`sidebar-toggle absolute bottom-4 flex h-8 w-8 items-center justify-center rounded-sm border transition-[background-color,border-color] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b5ff18] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a] ${
             isCollapsed && !shouldShowExpanded ? "right-4" : "right-3"
           }`}
         >
           {isCollapsed && !shouldShowExpanded ? (
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
           ) : (
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           )}
         </button>
       )}

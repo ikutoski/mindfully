@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Bell, Search, Command, LogOut, ChevronDown, Mail, AlertCircle, Laptop } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../lib/hooks/useAuth";
@@ -22,8 +22,15 @@ export function Header({ className }: HeaderProps) {
         setUserMenuOpen(false);
       }
     }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setUserMenuOpen(false);
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
   const handleResendVerification = async () => {
@@ -67,17 +74,20 @@ export function Header({ className }: HeaderProps) {
             searchFocused ? "md:max-w-lg" : ""
           }`}
         >
+          <label htmlFor="header-search" className="sr-only">Search agents</label>
           <Search
             className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors duration-200 ${
               searchFocused ? "text-[#e0e0e0]" : "text-[rgba(255,255,255,0.35)]"
             }`}
+            aria-hidden="true"
           />
           <input
-            type="text"
-            placeholder="Search agents..."
+            id="header-search"
+            type="search"
+            placeholder="Search agents…"
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
-            className="header-search-input h-10 w-full rounded-sm pl-10 pr-16 text-sm font-mono outline-none transition-all duration-200 placeholder:text-[rgba(255,255,255,0.2)]"
+            className="header-search-input h-10 w-full rounded-sm pl-10 pr-16 text-sm font-mono transition-[border-color,background-color] duration-200 placeholder:text-[rgba(255,255,255,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b5ff18] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
           />
           <div className="header-search-shortcut absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-mono text-[rgba(255,255,255,0.3)] md:flex">
             <Command className="h-3 w-3" />
@@ -87,32 +97,41 @@ export function Header({ className }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3">
-        <button className="header-icon-btn group relative flex h-9 w-9 items-center justify-center transition-all duration-200">
-          <Bell className="h-4 w-4 text-[rgba(255,255,255,0.4)] transition-colors duration-200 group-hover:text-[#e0e0e0]" />
-          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
+        <button
+          aria-label="Notifications"
+          className="header-icon-btn group relative flex h-9 w-9 items-center justify-center transition-[background-color,border-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b5ff18] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
+        >
+          <Bell className="h-4 w-4 text-[rgba(255,255,255,0.4)] transition-colors duration-200 group-hover:text-[#e0e0e0]" aria-hidden="true" />
+          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" aria-label="New notifications" />
         </button>
 
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="header-user-btn flex items-center gap-2 p-1.5 pr-3 transition-all duration-200"
+            aria-label="User menu"
+            aria-haspopup="true"
+            aria-expanded={userMenuOpen}
+            className="header-user-btn flex items-center gap-2 p-1.5 pr-3 transition-[background-color,border-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b5ff18] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
           >
             <div className="header-user-avatar flex h-7 w-7 items-center justify-center rounded-sm">
               {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name || ""} className="h-full w-full rounded-sm object-cover" />
+                <img src={user.avatarUrl} alt={user.name || "User avatar"} className="h-full w-full rounded-sm object-cover" />
               ) : (
-                <span className="text-[11px] font-bold">{userInitials}</span>
+                <span className="text-[11px] font-bold" aria-hidden="true">{userInitials}</span>
               )}
             </div>
             <span className="hidden md:block text-xs font-mono uppercase tracking-wider text-[rgba(255,255,255,0.7)] truncate max-w-[120px]">
               {user?.name || user?.email || "User"}
             </span>
-            <ChevronDown className={`h-3 w-3 text-[rgba(255,255,255,0.35)] transition-transform duration-200 ${userMenuOpen ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-3 w-3 text-[rgba(255,255,255,0.35)] transition-transform duration-200 ${userMenuOpen ? "rotate-180" : ""}`} aria-hidden="true" />
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 mt-2 w-56 rounded-sm border border-[rgba(255,255,255,0.08)] bg-[#0d0d0d]">
-              <div className="border-b border-[rgba(255,255,255,0.07)] p-3">
+            <div
+              role="menu"
+              aria-label="User account menu"
+              className="absolute right-0 mt-2 w-56 rounded-sm border border-[rgba(255,255,255,0.08)] bg-[#0d0d0d]"
+            >              <div className="border-b border-[rgba(255,255,255,0.07)] p-3">
                 <p className="text-xs font-mono text-[#e0e0e0] truncate">{user?.name || "User"}</p>
                 <p className="text-[10px] font-mono text-[rgba(255,255,255,0.35)] truncate mt-0.5">{user?.email}</p>
                 {user?.emailVerified === false && (

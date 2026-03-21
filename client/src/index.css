@@ -46,6 +46,9 @@ body {
 
 .font-mono { font-family: 'Space Mono', monospace; }
 
+/* Tabular numbers for stats and code */
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
 .label-xs {
   font-size: 10px;
   letter-spacing: 0.3em;

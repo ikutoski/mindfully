@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Github, Mail, Lock, User, Loader2 } from "lucide-react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { PasswordStrengthIndicator } from "../../components/auth/PasswordStrengthIndicator";
+import { createTimeline } from "animejs";
 
 export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -14,8 +15,17 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setIdToken } = useAuth();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const tl = createTimeline({ defaults: { ease: "easeOutExpo" } });
+    tl
+      .add(".auth-logo", { opacity: [0, 1], translateY: [-20, 0], duration: 600 })
+      .add(".auth-card", { opacity: [0, 1], translateY: [24, 0],  duration: 500 }, 200);
+  }, []);
 
   const handleGitHubLogin = () => {
     setIsLoading(true);
@@ -82,10 +92,10 @@ export function LoginPage() {
   };
 
   return (
-    <div className="auth-page">
+    <div className="auth-page" ref={containerRef}>
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="auth-title">
+        <div className="auth-logo text-center" style={{ opacity: 0 }}>
+          <h1 className="auth-title text-balance">
             Mindful
           </h1>
           <p className="auth-subtitle">
@@ -93,7 +103,7 @@ export function LoginPage() {
           </p>
         </div>
 
-        <div className="auth-card space-y-4">
+        <div className="auth-card space-y-4" style={{ opacity: 0 }}>
           <button
             onClick={handleGitHubLogin}
             disabled={isLoading}
@@ -142,41 +152,57 @@ export function LoginPage() {
 
           <form onSubmit={handleEmailAuth} className="space-y-4">
             {isRegistering && (
-              <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(255,255,255,0.16)]  transition-all">
-                <User className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Name (optional)"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] outline-none placeholder:text-[rgba(255,255,255,0.2)]"
-                />
+              <div className="space-y-1">
+                <label htmlFor="auth-name" className="sr-only">Name (optional)</label>
+                <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(181,255,24,0.3)] transition-[border-color] duration-200">
+                  <User className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <input
+                    id="auth-name"
+                    type="text"
+                    placeholder="Name (optional)…"
+                    autoComplete="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] placeholder:text-[rgba(255,255,255,0.2)] focus-visible:outline-none"
+                  />
+                </div>
               </div>
             )}
 
-            <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(255,255,255,0.16)]  transition-all">
-              <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-              <input
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] outline-none placeholder:text-[rgba(255,255,255,0.2)]"
-              />
+            <div className="space-y-1">
+              <label htmlFor="auth-email" className="sr-only">Email address</label>
+              <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(181,255,24,0.3)] transition-[border-color] duration-200">
+                <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                <input
+                  id="auth-email"
+                  type="email"
+                  placeholder="Email address…"
+                  autoComplete="email"
+                  spellCheck={false}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] placeholder:text-[rgba(255,255,255,0.2)] focus-visible:outline-none"
+                />
+              </div>
             </div>
 
-            <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(255,255,255,0.16)]  transition-all">
-              <Lock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] outline-none placeholder:text-[rgba(255,255,255,0.2)]"
-              />
+            <div className="space-y-1">
+              <label htmlFor="auth-password" className="sr-only">Password</label>
+              <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(181,255,24,0.3)] transition-[border-color] duration-200">
+                <Lock className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                <input
+                  id="auth-password"
+                  type="password"
+                  placeholder="Password…"
+                  autoComplete={isRegistering ? "new-password" : "current-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] placeholder:text-[rgba(255,255,255,0.2)] focus-visible:outline-none"
+                />
+              </div>
             </div>
 
             {isRegistering && password && (
@@ -195,7 +221,11 @@ export function LoginPage() {
             )}
 
             {error && (
-              <p className={`text-sm ${isRegistering && error.includes("successful") ? "text-green-400" : "text-red-400"}`}>
+              <p
+                role="alert"
+                aria-live="polite"
+                className={`text-sm ${isRegistering && error.includes("successful") ? "text-green-400" : "text-red-400"}`}
+              >
                 {error}
               </p>
             )}

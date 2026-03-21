@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Loader2, Play, Square, Bot, Terminal, X } from "lucide-react";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "motion/react";
 import { trpc } from "../../lib/api";
 
 interface Agent {
@@ -270,27 +271,32 @@ export function AgentRunPage() {
                 Run the agent to see output here
               </div>
             ) : (
-              output.map((item, index) => (
-                <div
-                  key={index}
-                  className={`p-3 rounded-lg ${
-                    item.type === "user"
-                      ? "bg-[rgba(181,255,24,0.06)] border border-[rgba(181,255,24,0.2)]"
-                      : item.type === "assistant"
-                      ? "bg-green-500/10 border border-green-500/20 text-green-400"
-                      : item.type === "thinking"
-                      ? "text-muted-foreground/70 italic"
-                      : item.type === "error"
-                      ? "bg-red-500/10 border border-red-500/20 text-red-400"
-                      : "bg-muted/30"
-                  }`}
-                >
-                  <div className="text-xs uppercase opacity-60 mb-1">
-                    {item.type}
-                  </div>
-                  <pre className="whitespace-pre-wrap break-words">{item.content}</pre>
-                </div>
-              ))
+              <AnimatePresence initial={false}>
+                {output.map((item, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, ease: [0.25, 0, 0, 1] }}
+                    className={`p-3 rounded-lg ${
+                      item.type === "user"
+                        ? "bg-[rgba(181,255,24,0.06)] border border-[rgba(181,255,24,0.2)]"
+                        : item.type === "assistant"
+                        ? "bg-green-500/10 border border-green-500/20 text-green-400"
+                        : item.type === "thinking"
+                        ? "text-muted-foreground/70 italic"
+                        : item.type === "error"
+                        ? "bg-red-500/10 border border-red-500/20 text-red-400"
+                        : "bg-muted/30"
+                    }`}
+                  >
+                    <div className="text-xs uppercase opacity-60 mb-1">
+                      {item.type}
+                    </div>
+                    <pre className="whitespace-pre-wrap break-words">{item.content}</pre>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             )}
           </div>
         </div>

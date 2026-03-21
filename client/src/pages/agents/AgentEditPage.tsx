@@ -113,7 +113,7 @@ export function AgentEditPage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold font-mono text-[#e0e0e0]">Edit Agent</h1>
+          <h1 className="text-2xl font-bold font-mono text-[#e0e0e0] text-balance">Edit Agent</h1>
           <p className="text-sm text-muted-foreground font-mono mt-1">
             Update your agent configuration
           </p>

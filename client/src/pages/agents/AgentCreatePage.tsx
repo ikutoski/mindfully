@@ -70,7 +70,7 @@ export function AgentCreatePage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold font-mono text-[#e0e0e0]">Create Agent</h1>
+          <h1 className="text-2xl font-bold font-mono text-[#e0e0e0] text-balance">Create Agent</h1>
           <p className="text-sm text-muted-foreground font-mono mt-1">
             Configure your new AI agent
           </p>
