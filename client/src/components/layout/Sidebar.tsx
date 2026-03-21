@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Bot,
@@ -35,6 +36,7 @@ export function Sidebar({
 }: SidebarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [hoverDisabled, setHoverDisabled] = useState(false);
+  const location = useLocation();
 
   const isCollapsed = isMobile ? false : collapsed;
   const shouldShowExpanded = hoverDisabled ? !collapsed : (isCollapsed ? isHovered : false);
@@ -64,30 +66,35 @@ export function Sidebar({
     onToggle();
   };
 
+  const isActive = (href: string) => {
+    if (href === "/") return location.pathname === "/";
+    return location.pathname.startsWith(href);
+  };
+
   return (
     <aside
-      className={`sidebar relative h-screen border-r border-[hsl(187_100%_50%/0.1)] bg-[hsl(222_47%_8%)] transition-all duration-300 ${
+      className={`sidebar relative h-screen transition-all duration-300 ${
         isCollapsed && !shouldShowExpanded ? "w-16" : "w-64"
       } ${isMobile ? "w-64" : ""}`}
     >
-      <div className="flex h-14 items-center justify-between border-b border-[hsl(187_100%_50%/0.1)] px-3 md:h-16 md:px-4">
+      <div className="flex h-14 items-center justify-between border-b border-[rgba(255,255,255,0.07)] px-3 md:h-16 md:px-4">
         {isMobile && onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="flex h-8 w-8 items-center justify-center rounded border border-[hsl(187_100%_50%/0.2)] bg-[hsl(187_100%_50%/0.05)]"
+            className="flex h-8 w-8 items-center justify-center rounded-sm border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)]"
           >
-            <X className="h-4 w-4 text-[hsl(187_100%_70%)]" />
+            <X className="h-4 w-4 text-[rgba(255,255,255,0.6)]" />
           </button>
         )}
 
         {!isMobile && (
           <>
             {isCollapsed && !shouldShowExpanded ? (
-              <span className="mx-auto font-display text-xl font-semibold tracking-widest text-gradient-cyber">
+              <span className="mx-auto font-mono font-bold text-[#e0e0e0] tracking-tight">
                 M
               </span>
             ) : (
-              <span className="font-display text-lg md:text-xl font-semibold tracking-widest text-gradient-cyber truncate">
+              <span className="font-mono font-bold text-[#e0e0e0] tracking-tight truncate">
                 Mindful
               </span>
             )}
@@ -95,52 +102,47 @@ export function Sidebar({
         )}
 
         {isMobile && (
-          <span className="font-display text-lg md:text-xl font-semibold tracking-widest text-gradient-cyber truncate">
+          <span className="font-mono font-bold text-[#e0e0e0] tracking-tight truncate">
             Mindful
           </span>
         )}
       </div>
 
       <nav
-        className="space-y-1 p-2 md:p-3"
+        className="space-y-0.5 p-2 md:p-3"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
         {navItems.map((item, index) => (
-          <a
+          <Link
             key={item.href}
-            href={item.href}
+            to={item.href}
             onClick={isMobile ? onCloseMobile : undefined}
-            className={`group relative flex items-center gap-3 rounded px-3 py-2.5 text-xs font-medium uppercase tracking-wider transition-all duration-300 ${
-              item.href === "/"
-                ? "bg-[hsl(187_100%_50%/0.1)] text-[hsl(187_100%_70%)]"
-                : "text-muted-foreground hover:text-foreground hover:bg-[hsl(187_100%_50%/0.05)]"
-            } sidebar-nav-item`}
-            style={{
-              animationDelay: `${index * 50}ms`,
-            }}
+            className={`group relative flex items-center gap-3 px-3 py-2.5 text-xs font-mono uppercase tracking-wider transition-all duration-200 rounded-sm sidebar-nav-item ${
+              isActive(item.href)
+                ? "bg-[rgba(181,255,24,0.08)] text-[#b5ff18] border border-[rgba(181,255,24,0.2)]"
+                : "text-[rgba(255,255,255,0.45)] hover:text-[#e0e0e0] hover:bg-[rgba(255,255,255,0.04)] border border-transparent"
+            }`}
+            style={{ animationDelay: `${index * 50}ms` }}
           >
-            {item.href === "/" && (
-              <div className="absolute inset-0 rounded border border-[hsl(187_100%_50%/0.2)] sidebar-nav-border" />
-            )}
             <item.icon
-              className={`h-4 w-4 shrink-0 transition-all duration-300 ${
-                item.href === "/"
-                  ? "text-[hsl(187_100%_70%)]"
-                  : "group-hover:text-[hsl(187_100%_70%)]"
+              className={`h-4 w-4 shrink-0 transition-colors duration-200 ${
+                isActive(item.href)
+                  ? "text-[#b5ff18]"
+                  : "group-hover:text-[#e0e0e0]"
               }`}
             />
             {(!isCollapsed || shouldShowExpanded) && (
-              <span className="relative z-10 truncate">{item.label}</span>
+              <span className="truncate">{item.label}</span>
             )}
-          </a>
+          </Link>
         ))}
       </nav>
 
       {!isMobile && (
         <button
           onClick={handleToggle}
-          className={`sidebar-toggle absolute bottom-4 flex h-8 w-8 items-center justify-center rounded border border-[hsl(187_100%_50%/0.2)] bg-[hsl(187_100%_50%/0.05)] text-muted-foreground transition-all duration-300 hover:border-[hsl(187_100%_50%/0.5)] hover:bg-[hsl(187_100%_50%/0.15)] hover:text-[hsl(187_100%_70%)] ${
+          className={`sidebar-toggle absolute bottom-4 flex h-8 w-8 items-center justify-center rounded-sm border transition-all duration-300 ${
             isCollapsed && !shouldShowExpanded ? "right-4" : "right-3"
           }`}
         >

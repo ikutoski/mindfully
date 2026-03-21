@@ -60,7 +60,7 @@ export function AgentsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[hsl(187_100%_50%)]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#b5ff18]" />
       </div>
     );
   }
@@ -69,7 +69,7 @@ export function AgentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold font-display text-[hsl(187_100%_70%)]">Agents</h1>
+          <h1 className="text-2xl font-bold font-mono text-[#e0e0e0]">Agents</h1>
           <p className="text-sm text-muted-foreground font-mono mt-1">
             Manage your AI agents
           </p>
@@ -106,25 +106,25 @@ export function AgentsPage() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-[hsl(187_100%_50%/0.1)] flex items-center justify-center">
-                    <Bot className="h-5 w-5 text-[hsl(187_100%_50%)]" />
+                  <div className="h-10 w-10 rounded-lg bg-[rgba(181,255,24,0.08)] flex items-center justify-center">
+                    <Bot className="h-5 w-5 text-[#b5ff18]" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-[hsl(187_100%_90%)]">{agent.name}</h3>
+                    <h3 className="font-medium text-[#e0e0e0]">{agent.name}</h3>
                     <p className="text-xs text-muted-foreground font-mono">{agent.model}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <Link
                     to={`/agents/${agent.id}/run`}
-                    className="p-2 hover:bg-[hsl(187_100%_50%/0.1)] rounded-md transition-colors"
+                    className="p-2 hover:bg-[rgba(181,255,24,0.08)] rounded-md transition-colors"
                     title="Run agent"
                   >
                     <Play className="h-4 w-4 text-green-400" />
                   </Link>
                   <Link
                     to={`/agents/${agent.id}`}
-                    className="p-2 hover:bg-[hsl(187_100%_50%/0.1)] rounded-md transition-colors"
+                    className="p-2 hover:bg-[rgba(181,255,24,0.08)] rounded-md transition-colors"
                     title="Settings"
                   >
                     <Settings className="h-4 w-4 text-muted-foreground" />

@@ -160,7 +160,7 @@ export function SessionsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin text-[hsl(187_100%_50%)]" />
+        <div className="h-8 w-8 animate-spin text-[#b5ff18]" />
         <p className="text-sm text-muted-foreground font-mono">Loading sessions...</p>
       </div>
     );
@@ -185,7 +185,7 @@ export function SessionsPage() {
       )}
 
       {currentSession && (
-        <div className="rounded-lg border border-[hsl(187_100%_50%/0.2)] bg-[hsl(187_100%_50%/0.05)] p-4">
+        <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(181,255,24,0.05)] p-4">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
               {getDeviceIcon(currentSession.userAgent)}
@@ -226,7 +226,7 @@ export function SessionsPage() {
             {otherSessions.map((session) => (
               <div
                 key={session.id}
-                className="rounded-lg border border-[hsl(187_100%_50%/0.2)] bg-[hsl(222_47%_8%)] p-4 hover:border-[hsl(187_100%_50%/0.3)] transition-all"
+                className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-4 hover:border-[rgba(255,255,255,0.14)] transition-all"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-shrink-0">
@@ -259,13 +259,13 @@ export function SessionsPage() {
       )}
 
       {otherSessions.length === 0 && currentSession && (
-        <div className="rounded-lg border border-[hsl(187_100%_50%/0.1)] bg-[hsl(222_47%_8%)] p-6 text-center">
+        <div className="rounded-lg border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] p-6 text-center">
           <AlertCircle className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground font-mono">No other active sessions</p>
         </div>
       )}
 
-      <div className="mt-6 pt-4 border-t border-[hsl(187_100%_50%/0.1)]">
+      <div className="mt-6 pt-4 border-t border-[rgba(255,255,255,0.06)]">
         <button
           onClick={handleLogoutAll}
           className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 font-mono transition-colors"

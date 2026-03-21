@@ -131,10 +131,10 @@ export function LoginPage() {
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[hsl(187_100%_50%/0.2)]" />
+              <div className="w-full border-t border-[rgba(255,255,255,0.08)]" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-[hsl(222_47%_6%)] px-2 text-muted-foreground">
+              <span className="bg-[#0a0a0a] px-2 text-muted-foreground">
                 {isRegistering ? "Create your account" : "Sign in with email"}
               </span>
             </div>
@@ -142,19 +142,19 @@ export function LoginPage() {
 
           <form onSubmit={handleEmailAuth} className="space-y-4">
             {isRegistering && (
-              <div className="flex w-full items-center gap-3 rounded-md border border-[hsl(187_100%_50%/0.2)] bg-[hsl(222_47%_8%)] px-3 py-0.5 focus-within:border-[hsl(187_100%_50%/0.5)] focus-within:shadow-[0_0_10px_hsl(187_100%_50%/0.2)] transition-all">
+              <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(255,255,255,0.16)]  transition-all">
                 <User className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Name (optional)"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[hsl(192_100%_90%)] outline-none placeholder:text-[hsl(192_100%_40%)]"
+                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] outline-none placeholder:text-[rgba(255,255,255,0.2)]"
                 />
               </div>
             )}
 
-            <div className="flex w-full items-center gap-3 rounded-md border border-[hsl(187_100%_50%/0.2)] bg-[hsl(222_47%_8%)] px-3 py-0.5 focus-within:border-[hsl(187_100%_50%/0.5)] focus-within:shadow-[0_0_10px_hsl(187_100%_50%/0.2)] transition-all">
+            <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(255,255,255,0.16)]  transition-all">
               <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
               <input
                 type="email"
@@ -162,11 +162,11 @@ export function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[hsl(192_100%_90%)] outline-none placeholder:text-[hsl(192_100%_40%)]"
+                className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] outline-none placeholder:text-[rgba(255,255,255,0.2)]"
               />
             </div>
 
-            <div className="flex w-full items-center gap-3 rounded-md border border-[hsl(187_100%_50%/0.2)] bg-[hsl(222_47%_8%)] px-3 py-0.5 focus-within:border-[hsl(187_100%_50%/0.5)] focus-within:shadow-[0_0_10px_hsl(187_100%_50%/0.2)] transition-all">
+            <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(255,255,255,0.16)]  transition-all">
               <Lock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
               <input
                 type="password"
@@ -175,7 +175,7 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[hsl(192_100%_90%)] outline-none placeholder:text-[hsl(192_100%_40%)]"
+                className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] outline-none placeholder:text-[rgba(255,255,255,0.2)]"
               />
             </div>
 
@@ -187,7 +187,7 @@ export function LoginPage() {
               <div className="text-right">
                 <Link
                   to="/forgot-password"
-                  className="text-sm text-muted-foreground hover:text-[hsl(187_100%_70%)] transition-colors"
+                  className="text-sm text-[#b5ff18] hover:text-[#c8ff50] transition-colors font-mono"
                 >
                   Forgot password?
                 </Link>
@@ -203,7 +203,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="auth-button w-full"
+              className="auth-button-primary w-full"
             >
               {isLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -218,7 +218,7 @@ export function LoginPage() {
               setIsRegistering(!isRegistering);
               setError("");
             }}
-            className="w-full text-center text-sm text-muted-foreground hover:text-[hsl(187_100%_70%)] transition-colors"
+            className="w-full text-center text-sm font-mono text-[rgba(255,255,255,0.35)] hover:text-[#b5ff18] transition-colors"
           >
             {isRegistering
               ? "Already have an account? Sign in"

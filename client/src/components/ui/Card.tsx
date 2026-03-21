@@ -7,14 +7,14 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 export const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className = "", variant = "default", children, ...props }, ref) => {
     const variantStyles = {
-      default: "border-[hsl(187_100%_50%/0.15)] bg-[hsl(222_47%_10%)]",
-      interactive: "border-[hsl(187_100%_50%/0.15)] bg-[hsl(222_47%_10%)] hover:border-[hsl(187_100%_50%/0.4)] cursor-pointer",
+      default: "border-[rgba(255,255,255,0.07)] bg-[#0e0e0e]",
+      interactive: "border-[rgba(255,255,255,0.07)] bg-[#0e0e0e] hover:border-[rgba(255,255,255,0.12)] cursor-pointer",
     };
 
     return (
       <div
         ref={ref}
-        className={`relative overflow-hidden rounded border transition-all duration-500 ${variantStyles[variant]} ${className}`}
+        className={`relative overflow-hidden rounded-sm border transition-all duration-200 ${variantStyles[variant]} ${className}`}
         {...props}
       >
         {children}
@@ -25,17 +25,9 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
 
 Card.displayName = "Card";
 
-export const CardGlow = ({ className = "" }: { className?: string }) => (
-  <div 
-    className={`absolute inset-0 bg-gradient-to-br from-[hsl(187_100%_50%/0.1)] to-transparent opacity-0 transition-opacity duration-500 hover:opacity-100 ${className}`}
-  />
-);
+export const CardGlow = () => null;
 
-export const CardBorder = ({ className = "" }: { className?: string }) => (
-  <div 
-    className={`absolute top-0 left-0 h-px w-full bg-gradient-to-r from-transparent via-[hsl(187_100%_50%/0.5)] to-transparent ${className}`}
-  />
-);
+export const CardBorder = () => null;
 
 export const CardContent = ({ className = "", children }: { className?: string; children: React.ReactNode }) => (
   <div className={`relative z-10 p-5 ${className}`}>

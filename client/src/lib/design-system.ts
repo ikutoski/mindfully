@@ -1,51 +1,51 @@
 export const colors = {
   primary: {
-    DEFAULT: "hsl(187 100% 50%)",
-    10: "hsl(187 100% 50% / 0.1)",
-    15: "hsl(187 100% 50% / 0.15)",
-    20: "hsl(187 100% 50% / 0.2)",
-    30: "hsl(187 100% 50% / 0.3)",
-    40: "hsl(187 100% 50% / 0.4)",
-    50: "hsl(187 100% 50% / 0.5)",
-    70: "hsl(187 100% 70%)",
+    DEFAULT: "#b5ff18",
+    10: "rgba(181,255,24,0.1)",
+    15: "rgba(181,255,24,0.15)",
+    20: "rgba(181,255,24,0.2)",
+    30: "rgba(181,255,24,0.3)",
+    40: "rgba(181,255,24,0.4)",
+    50: "rgba(181,255,24,0.5)",
+    70: "#c8ff50",
   },
   success: {
-    DEFAULT: "hsl(150 70% 60%)",
-    75: "hsl(150 70% 60% / 0.75)",
+    DEFAULT: "rgb(74,222,128)",
+    75: "rgba(74,222,128,0.75)",
   },
   warning: {
-    DEFAULT: "hsl(45 100% 60%)",
-    75: "hsl(45 100% 60% / 0.75)",
+    DEFAULT: "rgb(251,191,36)",
+    75: "rgba(251,191,36,0.75)",
   },
   danger: {
-    DEFAULT: "hsl(0 70% 60%)",
-    75: "hsl(0 70% 60% / 0.75)",
+    DEFAULT: "rgb(239,68,68)",
+    75: "rgba(239,68,68,0.75)",
   },
   background: {
-    DEFAULT: "hsl(222 47% 6%)",
-    card: "hsl(222 47% 10%)",
-    elevated: "hsl(222 47% 12%)",
+    DEFAULT: "#0a0a0a",
+    card: "#0e0e0e",
+    elevated: "#0d0d0d",
   },
   border: {
-    DEFAULT: "hsl(187 100% 50% / 0.1)",
-    hover: "hsl(187 100% 50% / 0.4)",
+    DEFAULT: "rgba(255,255,255,0.07)",
+    hover: "rgba(255,255,255,0.14)",
   },
 } as const;
 
-export const cn = (...classes: (string | boolean | undefined)[]) => 
+export const cn = (...classes: (string | boolean | undefined)[]) =>
   classes.filter(Boolean).join(" ");
 
 export const styles = {
   card: {
-    base: "relative overflow-hidden rounded border transition-all duration-500",
-    cyber: `border-[hsl(187_100%_50%/0.15)] bg-[hsl(222_47%_10%)] hover:border-[hsl(187_100%_50%/0.4)]`,
+    base: "relative overflow-hidden rounded-sm border transition-all duration-200",
+    cyber: `border-[rgba(255,255,255,0.07)] bg-[#0e0e0e] hover:border-[rgba(255,255,255,0.12)]`,
   },
   button: {
-    base: "flex items-center justify-center rounded border transition-all duration-300",
-    cyber: `border-[hsl(187_100%_50%/0.3)] bg-[hsl(187_100%_50%/0.05)] hover:border-[hsl(187_100%_50%/0.6)] hover:bg-[hsl(187_100%_50%/0.15)]`,
+    base: "flex items-center justify-center rounded-sm border transition-all duration-200",
+    cyber: `border-[rgba(181,255,24,0.3)] bg-[rgba(181,255,24,0.06)] hover:border-[rgba(181,255,24,0.5)] hover:bg-[rgba(181,255,24,0.12)]`,
   },
   text: {
-    gradient: "text-gradient-cyber",
+    gradient: "text-[#b5ff18]",
     mono: "font-mono text-xs uppercase tracking-wider",
   },
 } as const;

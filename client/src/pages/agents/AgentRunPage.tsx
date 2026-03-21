@@ -166,7 +166,7 @@ export function AgentRunPage() {
   if (!agent && !error) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[hsl(187_100%_50%)]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#b5ff18]" />
       </div>
     );
   }
@@ -177,12 +177,12 @@ export function AgentRunPage() {
         <div className="flex items-center gap-4">
           <Link
             to="/agents"
-            className="p-2 hover:bg-[hsl(187_100%_50%/0.1)] rounded-md transition-colors"
+            className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-md transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold font-display text-[hsl(187_100%_70%)]">
+            <h1 className="text-xl font-bold font-mono text-[#e0e0e0]">
               {agent?.name || "Agent"}
             </h1>
             <p className="text-xs text-muted-foreground font-mono">
@@ -256,7 +256,7 @@ export function AgentRunPage() {
             </h2>
             <button
               onClick={clearOutput}
-              className="p-1 hover:bg-[hsl(187_100%_50%/0.1)] rounded transition-colors"
+              className="p-1 hover:bg-[rgba(255,255,255,0.05)] rounded transition-colors"
             >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
@@ -275,7 +275,7 @@ export function AgentRunPage() {
                   key={index}
                   className={`p-3 rounded-lg ${
                     item.type === "user"
-                      ? "bg-[hsl(187_100%_50%/0.1)] border border-[hsl(187_100%_50%/0.2)]"
+                      ? "bg-[rgba(181,255,24,0.06)] border border-[rgba(181,255,24,0.2)]"
                       : item.type === "assistant"
                       ? "bg-green-500/10 border border-green-500/20 text-green-400"
                       : item.type === "thinking"

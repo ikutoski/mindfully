@@ -85,14 +85,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         }}
       >
         {isMobile && (
-          <header className="sticky top-0 z-30 flex h-14 items-center border-b border-[hsl(187_100%_50%/0.1)] px-4 backdrop-blur-xl layout-header-mobile">
+          <header className="sticky top-0 z-30 flex h-14 items-center border-b border-[rgba(255,255,255,0.07)] px-4 backdrop-blur-xl layout-header-mobile">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="mr-3 flex h-9 w-9 items-center justify-center rounded border border-[hsl(187_100%_50%/0.2)] bg-[hsl(187_100%_50%/0.05)]"
+              className="mr-3 flex h-9 w-9 items-center justify-center rounded-sm border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)]"
             >
-              <Menu className="h-5 w-5 text-[hsl(187_100%_70%)]" />
+              <Menu className="h-5 w-5 text-[rgba(255,255,255,0.6)]" />
             </button>
-            <span className="font-display text-lg font-semibold tracking-widest text-gradient-cyber">
+            <span className="font-mono font-bold text-[#e0e0e0] tracking-tight">
               Mindful
             </span>
           </header>

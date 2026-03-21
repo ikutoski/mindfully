@@ -54,7 +54,7 @@ export function VerifyEmailPage() {
         <div className="auth-card flex flex-col items-center justify-center py-12 space-y-4">
           {status === "loading" && (
             <>
-              <Loader2 className="h-12 w-12 animate-spin text-[hsl(187_100%_50%)]" />
+              <Loader2 className="h-12 w-12 animate-spin text-[#b5ff18]" />
               <p className="text-muted-foreground font-mono text-sm">Verifying your email...</p>
             </>
           )}

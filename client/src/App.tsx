@@ -19,10 +19,10 @@ function Dashboard() {
       <VerificationBanner />
       
       <div className="animate-fade-in-up fade-in-delay-0">
-        <h1 className="font-display text-4xl font-semibold tracking-wider">
-          <span className="text-gradient-cyber">Dashboard</span>
+        <h1 className="font-mono text-2xl font-bold tracking-tight text-[#e0e0e0]">
+          Dashboard
         </h1>
-        <p className="mt-2 font-mono text-sm text-muted-foreground uppercase tracking-widest">
+        <p className="mt-1 font-mono text-[10px] text-[rgba(255,255,255,0.35)] uppercase tracking-[0.28em]">
           Monitor your agents and recent activity
         </p>
       </div>

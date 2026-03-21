@@ -25,38 +25,23 @@ export function ActivityChart() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.4, duration: 0.4, ease: "easeOut" }}
-      className="group relative overflow-hidden rounded border border-[hsl(187_100%_50%/0.15)] bg-[hsl(222_47%_10%)] p-3 md:p-6"
-      style={{
-        background:
-          "linear-gradient(135deg, hsl(222 47% 12%) 0%, hsl(222 47% 8%) 100%)",
-        boxShadow: "0 4px 24px hsl(0 0% 0% / 0.4)",
-      }}
+      className="relative overflow-hidden rounded-sm border border-[rgba(255,255,255,0.07)] bg-[#0e0e0e] p-3 md:p-6"
     >
-      <div
-        className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-        style={{
-          background:
-            "linear-gradient(135deg, hsl(187 100% 50% / 0.1) 0%, transparent 50%)",
-        }}
-      />
-
-      <div className="absolute top-0 left-0 h-px w-full bg-gradient-to-r from-transparent via-[hsl(187_100%_50%/0.5)] to-transparent" />
-
       <div className="relative z-10">
         <div className="mb-6 flex items-center justify-between">
-          <h3 className="font-display text-lg font-semibold tracking-widest uppercase text-foreground">
+          <h3 className="font-mono text-xs font-bold tracking-[0.28em] uppercase text-[rgba(255,255,255,0.35)]">
             Activity
           </h3>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-gradient-to-br from-[hsl(35_100%_60%)] to-[hsl(35_100%_50%)] shadow-lg shadow-[hsl(35_100%_50%/0.4)]" />
-              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#b5ff18]" />
+              <span className="font-mono text-[10px] uppercase tracking-wider text-[rgba(255,255,255,0.35)]">
                 Tasks
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-gradient-to-br from-[hsl(150_70%_60%)] to-[hsl(150_70%_50%)] shadow-lg shadow-[hsl(150_70%_50%/0.4)]" />
-              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-[rgb(74,222,128)]" />
+              <span className="font-mono text-[10px] uppercase tracking-wider text-[rgba(255,255,255,0.35)]">
                 Agents
               </span>
             </div>
@@ -67,94 +52,69 @@ export function ActivityChart() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
               <defs>
-                <linearGradient
-                  id="colorTasksCyber"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#b5ff18" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#b5ff18" stopOpacity={0} />
                 </linearGradient>
-                <linearGradient
-                  id="colorAgentsCyber"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                <linearGradient id="colorAgents" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="rgb(74,222,128)" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="rgb(74,222,128)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="hsl(187 100% 50% / 0.1)"
+                stroke="rgba(255,255,255,0.04)"
                 vertical={false}
               />
               <XAxis
                 dataKey="time"
-                className="text-xs"
-                tick={{ fill: "hsl(192 100% 60%)", fontSize: 10 }}
+                tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10, fontFamily: "Space Mono" }}
                 tickLine={false}
-                axisLine={{ stroke: "hsl(187 100% 50% / 0.2)" }}
+                axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
               />
               <YAxis
-                className="text-xs"
-                tick={{ fill: "hsl(192 100% 60%)", fontSize: 10 }}
+                tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10, fontFamily: "Space Mono" }}
                 tickLine={false}
                 axisLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  background:
-                    "linear-gradient(135deg, hsl(222 47% 14%) 0%, hsl(222 47% 10%) 100%)",
-                  border: "1px solid hsl(187 100% 50% / 0.3)",
-                  borderRadius: "4px",
-                  boxShadow: "0 0 20px hsl(187 100% 50% / 0.2)",
+                  background: "#0d0d0d",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: "2px",
                 }}
                 labelStyle={{
-                  color: "hsl(192 100% 80%)",
-                  fontWeight: 600,
+                  color: "#e0e0e0",
                   fontFamily: "Space Mono",
+                  fontSize: 11,
                 }}
                 itemStyle={{
-                  color: "hsl(192 100% 70%)",
+                  color: "rgba(255,255,255,0.55)",
                   fontFamily: "Space Mono",
+                  fontSize: 11,
                 }}
               />
               <Area
                 type="monotone"
                 dataKey="tasks"
-                stroke="#f59e0b"
-                strokeWidth={2}
+                stroke="#b5ff18"
+                strokeWidth={1.5}
                 fillOpacity={1}
-                fill="url(#colorTasksCyber)"
+                fill="url(#colorTasks)"
                 name="Tasks"
                 dot={false}
-                activeDot={{
-                  r: 6,
-                  fill: "#f59e0b",
-                  stroke: "hsl(222 47% 10%)",
-                  strokeWidth: 2,
-                }}
+                activeDot={{ r: 4, fill: "#b5ff18", stroke: "#0e0e0e", strokeWidth: 2 }}
               />
               <Area
                 type="monotone"
                 dataKey="agents"
-                stroke="#34d399"
-                strokeWidth={2}
+                stroke="rgb(74,222,128)"
+                strokeWidth={1.5}
                 fillOpacity={1}
-                fill="url(#colorAgentsCyber)"
+                fill="url(#colorAgents)"
                 name="Active Agents"
                 dot={false}
-                activeDot={{
-                  r: 6,
-                  fill: "#34d399",
-                  stroke: "hsl(222 47% 10%)",
-                  strokeWidth: 2,
-                }}
+                activeDot={{ r: 4, fill: "rgb(74,222,128)", stroke: "#0e0e0e", strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>

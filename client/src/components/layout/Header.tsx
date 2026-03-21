@@ -28,7 +28,6 @@ export function Header({ className }: HeaderProps) {
 
   const handleResendVerification = async () => {
     if (!user?.email || resending) return;
-    
     setResending(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -38,7 +37,6 @@ export function Header({ className }: HeaderProps) {
         credentials: "include",
         body: JSON.stringify({ email: user.email }),
       });
-      
       if (response.ok) {
         setResent(true);
         setTimeout(() => setResent(false), 5000);
@@ -61,7 +59,7 @@ export function Header({ className }: HeaderProps) {
 
   return (
     <header
-      className={`sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[hsl(187_100%_50%/0.1)] px-4 md:px-6 backdrop-blur-xl header ${className || ""}`}
+      className={`sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[rgba(255,255,255,0.07)] px-4 md:px-6 header ${className || ""}`}
     >
       <div className="flex flex-1 items-center gap-4">
         <div
@@ -70,10 +68,8 @@ export function Header({ className }: HeaderProps) {
           }`}
         >
           <Search
-            className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors duration-300 ${
-              searchFocused
-                ? "text-[hsl(187_100%_70%)]"
-                : "text-muted-foreground"
+            className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors duration-200 ${
+              searchFocused ? "text-[#e0e0e0]" : "text-[rgba(255,255,255,0.35)]"
             }`}
           />
           <input
@@ -81,79 +77,79 @@ export function Header({ className }: HeaderProps) {
             placeholder="Search agents..."
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
-            className="header-search-input h-10 w-full rounded pl-10 pr-16 text-sm font-mono text-foreground outline-none transition-all duration-300 placeholder:text-muted-foreground"
+            className="header-search-input h-10 w-full rounded-sm pl-10 pr-16 text-sm font-mono outline-none transition-all duration-200 placeholder:text-[rgba(255,255,255,0.2)]"
           />
-          <div className="header-search-shortcut absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded px-2 py-0.5 text-xs font-mono text-muted-foreground md:flex">
+          <div className="header-search-shortcut absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-mono text-[rgba(255,255,255,0.3)] md:flex">
             <Command className="h-3 w-3" />
             <span>K</span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <button className="header-icon-btn group relative flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-300">
-          <Bell className="h-5 w-5 text-muted-foreground transition-colors duration-300 group-hover:text-[hsl(187_100%_70%)]" />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-gradient-to-br from-red-400 to-red-600 shadow-lg shadow-red-500/50" />
+      <div className="flex items-center gap-3">
+        <button className="header-icon-btn group relative flex h-9 w-9 items-center justify-center transition-all duration-200">
+          <Bell className="h-4 w-4 text-[rgba(255,255,255,0.4)] transition-colors duration-200 group-hover:text-[#e0e0e0]" />
+          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
         </button>
 
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="header-user-btn flex items-center gap-2 rounded-lg p-1.5 pr-3 transition-all duration-300 hover:bg-[hsl(187_100%_50%/0.1)]"
+            className="header-user-btn flex items-center gap-2 p-1.5 pr-3 transition-all duration-200"
           >
-            <div className="header-user-avatar flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-[hsl(187_100%_50%)] to-[hsl(300_100%_60%)]">
+            <div className="header-user-avatar flex h-7 w-7 items-center justify-center rounded-sm">
               {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name || ""} className="h-full w-full rounded-md object-cover" />
+                <img src={user.avatarUrl} alt={user.name || ""} className="h-full w-full rounded-sm object-cover" />
               ) : (
-                <span className="text-xs font-bold text-[hsl(222_47%_6%)]">{userInitials}</span>
+                <span className="text-[11px] font-bold">{userInitials}</span>
               )}
             </div>
-            <span className="hidden md:block text-sm font-medium uppercase tracking-wider text-foreground truncate max-w-[120px]">
+            <span className="hidden md:block text-xs font-mono uppercase tracking-wider text-[rgba(255,255,255,0.7)] truncate max-w-[120px]">
               {user?.name || user?.email || "User"}
             </span>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${userMenuOpen ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-3 w-3 text-[rgba(255,255,255,0.35)] transition-transform duration-200 ${userMenuOpen ? "rotate-180" : ""}`} />
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 mt-2 w-56 rounded-md border border-[hsl(187_100%_50%/0.2)] bg-[hsl(222_47%_10%)] shadow-lg shadow-[hsl(187_100%_50%/0.1)]">
-              <div className="border-b border-[hsl(187_100%_50%/0.1)] p-3">
-                <p className="text-sm font-medium text-foreground truncate">{user?.name || "User"}</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            <div className="absolute right-0 mt-2 w-56 rounded-sm border border-[rgba(255,255,255,0.08)] bg-[#0d0d0d]">
+              <div className="border-b border-[rgba(255,255,255,0.07)] p-3">
+                <p className="text-xs font-mono text-[#e0e0e0] truncate">{user?.name || "User"}</p>
+                <p className="text-[10px] font-mono text-[rgba(255,255,255,0.35)] truncate mt-0.5">{user?.email}</p>
                 {user?.emailVerified === false && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-400">
+                  <div className="mt-2 flex items-center gap-1.5 text-[10px] font-mono text-amber-400">
                     <AlertCircle className="h-3 w-3" />
                     <span>Email not verified</span>
                   </div>
                 )}
               </div>
               {user?.emailVerified === false && (
-                <div className="border-b border-[hsl(187_100%_50%/0.1)] p-1">
+                <div className="border-b border-[rgba(255,255,255,0.07)] p-1">
                   <button
                     onClick={handleResendVerification}
                     disabled={resending || resent}
-                    className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-amber-400 hover:bg-[hsl(45_100%_50%/0.1)] transition-colors disabled:opacity-50"
+                    className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-xs font-mono text-amber-400 hover:bg-[rgba(255,255,255,0.04)] transition-colors disabled:opacity-50"
                   >
-                    <Mail className="h-4 w-4" />
+                    <Mail className="h-3.5 w-3.5" />
                     {resent ? "Email sent!" : resending ? "Sending..." : "Resend verification"}
                   </button>
                 </div>
               )}
-              <div className="border-b border-[hsl(187_100%_50%/0.1)] p-1">
+              <div className="border-b border-[rgba(255,255,255,0.07)] p-1">
                 <Link
                   to="/settings/sessions"
                   onClick={() => setUserMenuOpen(false)}
-                  className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-muted-foreground hover:bg-[hsl(187_100%_50%/0.1)] hover:text-foreground transition-colors"
+                  className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-xs font-mono text-[rgba(255,255,255,0.45)] hover:bg-[rgba(255,255,255,0.04)] hover:text-[#e0e0e0] transition-colors"
                 >
-                  <Laptop className="h-4 w-4" />
+                  <Laptop className="h-3.5 w-3.5" />
                   Manage sessions
                 </Link>
               </div>
               <div className="p-1">
                 <button
                   onClick={handleLogout}
-                  className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-red-400 hover:bg-[hsl(187_100%_50%/0.1)] transition-colors"
+                  className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-xs font-mono text-red-400 hover:bg-[rgba(239,68,68,0.06)] transition-colors"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-3.5 w-3.5" />
                   Sign out
                 </button>
               </div>

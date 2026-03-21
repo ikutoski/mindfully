@@ -1,139 +1,166 @@
-/* Auth page styles */
+/* Auth — Precision Black */
 .auth-page {
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   padding: 1rem;
-  background: hsl(222 47% 6%);
+  background: #0a0a0a;
 }
 
 .auth-card {
-  width: 100%;
-  max-width: 28rem;
+  width: 100%; max-width: 26rem;
   padding: 2rem;
-  border-radius: 0.5rem;
-  border: 1px solid hsl(187 100% 50% / 0.2);
-  background: hsl(222 47% 10%);
-  box-shadow: 0 0 30px hsl(187 100% 50% / 0.1);
+  border-radius: 2px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: #0d0d0d;
 }
 
 .auth-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 2.5rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  background: linear-gradient(135deg, hsl(187 100% 70%) 0%, hsl(187 100% 50%) 50%, hsl(300 100% 60%) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  letter-spacing: -0.02em;
+  color: #e0e0e0;
 }
 
 .auth-subtitle {
   font-family: 'Space Mono', monospace;
-  font-size: 0.875rem;
-  color: hsl(192 100% 60%);
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-top: 1rem;
+  letter-spacing: 0.28em;
+  margin-top: 0.5rem;
 }
 
 .auth-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.625rem;
   width: 100%;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.25rem;
-  border: 1px solid hsl(187 100% 50% / 0.3);
-  background: hsl(187 100% 50% / 0.05);
+  padding: 0.625rem 1.25rem;
+  border-radius: 2px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
   font-family: 'Space Mono', monospace;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: hsl(187 100% 70%);
-  transition: all 0.3s;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.65);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  cursor: pointer;
+  text-decoration: none;
+}
+.auth-button:hover:not(:disabled) {
+  border-color: rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.05);
+  color: #e0e0e0;
+}
+.auth-button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.auth-button-primary {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.625rem 1.25rem;
+  border-radius: 2px;
+  border-color: rgba(181,255,24,0.3);
+  background: rgba(181,255,24,0.06);
+  color: #b5ff18;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: border-color 0.15s, background 0.15s;
   cursor: pointer;
 }
-
-.auth-button:hover:not(:disabled) {
-  border-color: hsl(187 100% 50% / 0.6);
-  background: hsl(187 100% 50% / 0.15);
-}
-
-.auth-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.auth-button-primary:hover:not(:disabled) {
+  border-color: rgba(181,255,24,0.5);
+  background: rgba(181,255,24,0.12);
 }
 
 .auth-input {
   width: 100%;
-  box-sizing: border-box;
-  padding: 0.875rem 1rem;
-  border-radius: 0.375rem;
-  border: 1px solid hsl(187 100% 50% / 0.2);
-  background: hsl(222 47% 8%);
+  padding: 0.625rem 0.875rem;
+  border-radius: 2px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
   font-family: 'Space Mono', monospace;
-  font-size: 0.875rem;
-  color: hsl(192 100% 90%);
-  transition: all 0.3s;
+  font-size: 0.8rem;
+  color: #e0e0e0;
   outline: none;
+  transition: border-color 0.15s;
+}
+.auth-input::placeholder { color: rgba(255,255,255,0.2); }
+.auth-input:focus { border-color: rgba(255,255,255,0.16); }
+
+.auth-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.35);
 }
 
-.auth-input::placeholder {
-  color: hsl(192 100% 40%);
+.auth-divider {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: ''; flex: 1; height: 1px;
+  background: rgba(255,255,255,0.06);
+}
+.auth-divider span {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.22);
 }
 
-.auth-input:focus {
-  border-color: hsl(187 100% 50% / 0.5);
-  box-shadow: 0 0 10px hsl(187 100% 50% / 0.2);
+.auth-error {
+  padding: 0.5rem 0.75rem;
+  border-radius: 2px;
+  border: 1px solid rgba(239,68,68,0.2);
+  background: rgba(239,68,68,0.05);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  color: rgb(239,68,68);
 }
 
-.auth-form-group {
-  width: 100%;
+.auth-link {
+  color: #b5ff18;
+  text-decoration: none;
+  font-size: 0.75rem;
+  transition: color 0.15s;
 }
+.auth-link:hover { color: #c8ff50; }
 
 .auth-footer {
   text-align: center;
   font-family: 'Space Mono', monospace;
-  font-size: 0.75rem;
-  color: hsl(192 100% 60%);
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.22);
   margin-top: 1.5rem;
 }
 
-/* OAuth callback loading */
-.callback-loading {
-  text-align: center;
-}
-
+/* OAuth callback */
+.callback-loading { text-align: center; }
 .callback-spinner {
   display: inline-block;
-  width: 2rem;
-  height: 2rem;
-  border: 4px solid hsl(187 100% 50% / 0.3);
-  border-top-color: hsl(187 100% 70%);
+  width: 1.5rem; height: 1.5rem;
+  border: 2px solid rgba(181,255,24,0.2);
+  border-top-color: #b5ff18;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.callback-error {
-  text-align: center;
-}
-
+@keyframes spin { to { transform: rotate(360deg); } }
+.callback-error { text-align: center; }
 .callback-error h1 {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: hsl(0 70% 60%);
+  font-family: 'Space Mono', monospace;
+  font-size: 1.25rem; font-weight: 700;
+  color: rgb(239,68,68);
 }
-
 .callback-error p {
   font-family: 'Space Mono', monospace;
-  font-size: 0.875rem;
-  color: hsl(192 100% 60%);
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.45);
 }

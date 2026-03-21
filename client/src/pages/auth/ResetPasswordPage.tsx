@@ -95,7 +95,7 @@ export function ResetPasswordPage() {
                 Enter your new password below.
               </p>
 
-              <div className="flex w-full items-center gap-3 rounded-md border border-[hsl(187_100%_50%/0.2)] bg-[hsl(222_47%_8%)] px-3 py-0.5 focus-within:border-[hsl(187_100%_50%/0.5)] focus-within:shadow-[0_0_10px_hsl(187_100%_50%/0.2)] transition-all">
+              <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(255,255,255,0.16)]  transition-all">
                 <Lock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                 <input
                   type="password"
@@ -104,11 +104,11 @@ export function ResetPasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[hsl(192_100%_90%)] outline-none placeholder:text-[hsl(192_100%_40%)]"
+                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] outline-none placeholder:text-[rgba(255,255,255,0.2)]"
                 />
               </div>
 
-              <div className="flex w-full items-center gap-3 rounded-md border border-[hsl(187_100%_50%/0.2)] bg-[hsl(222_47%_8%)] px-3 py-0.5 focus-within:border-[hsl(187_100%_50%/0.5)] focus-within:shadow-[0_0_10px_hsl(187_100%_50%/0.2)] transition-all">
+              <div className="flex w-full items-center gap-3 rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-0.5 focus-within:border-[rgba(255,255,255,0.16)]  transition-all">
                 <Lock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                 <input
                   type="password"
@@ -117,7 +117,7 @@ export function ResetPasswordPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[hsl(192_100%_90%)] outline-none placeholder:text-[hsl(192_100%_40%)]"
+                  className="flex-1 bg-transparent py-2.5 text-sm font-mono text-[#e0e0e0] outline-none placeholder:text-[rgba(255,255,255,0.2)]"
                 />
               </div>
 
@@ -128,7 +128,7 @@ export function ResetPasswordPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="auth-button w-full"
+                className="auth-button-primary w-full"
               >
                 {isLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />

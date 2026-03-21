@@ -16,7 +16,7 @@ export const IconWrapper = forwardRef<HTMLDivElement, IconWrapperProps>(
     return (
       <div
         ref={ref}
-        className={`inline-flex items-center justify-center rounded border border-[hsl(187_100%_50%/0.3)] bg-[hsl(187_100%_50%/0.1)] ${sizeStyles[size]} ${className}`}
+        className={`inline-flex items-center justify-center rounded-sm border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] ${sizeStyles[size]} ${className}`}
         {...props}
       >
         {children}

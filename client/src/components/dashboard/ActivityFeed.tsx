@@ -10,81 +10,39 @@ interface Activity {
 }
 
 const activities: Activity[] = [
-  {
-    id: "1",
-    agent: "Research",
-    task: "Search for AI trends 2026",
-    status: "completed",
-    time: "2m ago",
-  },
-  {
-    id: "2",
-    agent: "Builder",
-    task: "Generate React component",
-    status: "running",
-    time: "now",
-  },
-  {
-    id: "3",
-    agent: "Analyzer",
-    task: "Process dataset",
-    status: "completed",
-    time: "5m ago",
-  },
-  {
-    id: "4",
-    agent: "Research",
-    task: "Fetch documentation",
-    status: "failed",
-    time: "10m ago",
-  },
-  {
-    id: "5",
-    agent: "Planner",
-    task: "Create task queue",
-    status: "pending",
-    time: "12m ago",
-  },
-  {
-    id: "6",
-    agent: "Builder",
-    task: "Review code changes",
-    status: "completed",
-    time: "15m ago",
-  },
-  {
-    id: "7",
-    agent: "Analyzer",
-    task: "Generate insights",
-    status: "completed",
-    time: "20m ago",
-  },
+  { id: "1", agent: "Research", task: "Search for AI trends 2026", status: "completed", time: "2m ago" },
+  { id: "2", agent: "Builder", task: "Generate React component", status: "running", time: "now" },
+  { id: "3", agent: "Analyzer", task: "Process dataset", status: "completed", time: "5m ago" },
+  { id: "4", agent: "Research", task: "Fetch documentation", status: "failed", time: "10m ago" },
+  { id: "5", agent: "Planner", task: "Create task queue", status: "pending", time: "12m ago" },
+  { id: "6", agent: "Builder", task: "Review code changes", status: "completed", time: "15m ago" },
+  { id: "7", agent: "Analyzer", task: "Generate insights", status: "completed", time: "20m ago" },
 ];
 
 const statusConfig = {
   completed: {
     icon: CheckCircle2,
-    color: "text-[hsl(150_70%_60%)]",
-    bg: "bg-[hsl(150_70%_60%/0.1)]",
-    border: "border-[hsl(150_70%_60%/0.2)]",
+    color: "text-[rgb(74,222,128)]",
+    bg: "bg-[rgba(74,222,128,0.08)]",
+    border: "border-[rgba(74,222,128,0.15)]",
   },
   running: {
     icon: PlayCircle,
-    color: "text-[hsl(35_100%_60%)]",
-    bg: "bg-[hsl(35_100%_60%/0.1)]",
-    border: "border-[hsl(35_100%_60%/0.2)]",
+    color: "text-[#b5ff18]",
+    bg: "bg-[rgba(181,255,24,0.08)]",
+    border: "border-[rgba(181,255,24,0.15)]",
   },
   failed: {
     icon: XCircle,
-    color: "text-[hsl(0_100%_60%)]",
-    bg: "bg-[hsl(0_100%_60%/0.1)]",
-    border: "border-[hsl(0_100%_60%/0.2)]",
+    color: "text-red-400",
+    bg: "bg-[rgba(239,68,68,0.08)]",
+    border: "border-[rgba(239,68,68,0.15)]",
   },
   pending: {
     icon: Clock,
-    color: "text-[hsl(192_100%_60%)]",
-    bg: "bg-[hsl(192_100%_60%/0.1)]",
-    border: "border-[hsl(192_100%_60%/0.2)]",
+    color: "text-[rgba(255,255,255,0.35)]",
+    bg: "bg-[rgba(255,255,255,0.04)]",
+    border: "border-[rgba(255,255,255,0.07)]",
   },
 };
 
@@ -100,7 +58,7 @@ export function ActivityFeed() {
       <div className="feed-card-border" />
 
       <div className="relative z-10">
-        <h3 className="feed-card-title text-foreground">
+        <h3 className="feed-card-title">
           Activity Log
         </h3>
         <div className="feed-list">
@@ -120,16 +78,10 @@ export function ActivityFeed() {
                   <Icon className={`h-3.5 w-3.5 ${config.color}`} />
                 </div>
                 <div className="feed-item-content">
-                  <p className="feed-item-task">
-                    {activity.task}
-                  </p>
-                  <p className="feed-item-agent">
-                    {activity.agent}
-                  </p>
+                  <p className="feed-item-task">{activity.task}</p>
+                  <p className="feed-item-agent">{activity.agent}</p>
                 </div>
-                <span className="feed-item-time">
-                  {activity.time}
-                </span>
+                <span className="feed-item-time">{activity.time}</span>
               </motion.div>
             );
           })}

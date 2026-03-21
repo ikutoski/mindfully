@@ -65,12 +65,12 @@ export function AgentCreatePage() {
       <div className="flex items-center gap-4">
         <Link
           to="/agents"
-          className="p-2 hover:bg-[hsl(187_100%_50%/0.1)] rounded-md transition-colors"
+          className="p-2 hover:bg-[rgba(255,255,255,0.05)] rounded-md transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold font-display text-[hsl(187_100%_70%)]">Create Agent</h1>
+          <h1 className="text-2xl font-bold font-mono text-[#e0e0e0]">Create Agent</h1>
           <p className="text-sm text-muted-foreground font-mono mt-1">
             Configure your new AI agent
           </p>
@@ -85,8 +85,8 @@ export function AgentCreatePage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="card-cyber p-6 space-y-4">
-          <h2 className="text-lg font-medium text-[hsl(187_100%_90%)] flex items-center gap-2">
-            <Bot className="h-5 w-5 text-[hsl(187_100%_50%)]" />
+          <h2 className="text-lg font-medium text-[rgba(255,255,255,0.8)] flex items-center gap-2">
+            <Bot className="h-5 w-5 text-[#b5ff18]" />
             Basic Information
           </h2>
           
@@ -121,7 +121,7 @@ export function AgentCreatePage() {
         </div>
 
         <div className="card-cyber p-6 space-y-4">
-          <h2 className="text-lg font-medium text-[hsl(187_100%_90%)]">Tools</h2>
+          <h2 className="text-lg font-medium text-[rgba(255,255,255,0.8)]">Tools</h2>
           
           <div className="grid grid-cols-2 gap-3">
             {TOOLS.map((tool) => (
@@ -129,8 +129,8 @@ export function AgentCreatePage() {
                 key={tool.value}
                 className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                   selectedTools.includes(tool.value)
-                    ? "border-[hsl(187_100%_50%)] bg-[hsl(187_100%_50%/0.1)]"
-                    : "border-[hsl(187_100%_50%/0.2)] hover:border-[hsl(187_100%_50%/0.4)]"
+                    ? "border-[rgba(181,255,24,0.5)] bg-[rgba(181,255,24,0.08)]"
+                    : "border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.16)]"
                 }`}
               >
                 <input
@@ -142,7 +142,7 @@ export function AgentCreatePage() {
                 <div
                   className={`h-4 w-4 rounded border flex items-center justify-center ${
                     selectedTools.includes(tool.value)
-                      ? "bg-[hsl(187_100%_50%)] border-[hsl(187_100%_50%)]"
+                      ? "bg-[#b5ff18] border-[rgba(181,255,24,0.5)]"
                       : "border-muted-foreground"
                   }`}
                 >
@@ -159,7 +159,7 @@ export function AgentCreatePage() {
         </div>
 
         <div className="card-cyber p-6 space-y-4">
-          <h2 className="text-lg font-medium text-[hsl(187_100%_90%)]">Memory</h2>
+          <h2 className="text-lg font-medium text-[rgba(255,255,255,0.8)]">Memory</h2>
           
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -170,7 +170,7 @@ export function AgentCreatePage() {
             />
             <div
               className={`h-5 w-9 rounded-full transition-colors ${
-                memoryEnabled ? "bg-[hsl(187_100%_50%)]" : "bg-muted"
+                memoryEnabled ? "bg-[#b5ff18]" : "bg-muted"
               }`}
             >
               <div
@@ -184,7 +184,7 @@ export function AgentCreatePage() {
         </div>
 
         <div className="card-cyber p-6 space-y-4">
-          <h2 className="text-lg font-medium text-[hsl(187_100%_90%)]">System Prompt</h2>
+          <h2 className="text-lg font-medium text-[rgba(255,255,255,0.8)]">System Prompt</h2>
           
           <textarea
             value={systemPrompt}
