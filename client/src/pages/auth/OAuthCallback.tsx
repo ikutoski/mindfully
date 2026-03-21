@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../lib/hooks/useAuth";
 
 export function OAuthCallback() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const hasProcessed = useRef(false);
 
@@ -13,6 +15,7 @@ export function OAuthCallback() {
     const handleCallback = async () => {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
+      const returnTo = params.get("state") ? decodeURIComponent(params.get("state")!) : "/";
       const pathParts = window.location.pathname.split("/");
       const provider = pathParts[pathParts.length - 1];
 
@@ -43,14 +46,15 @@ export function OAuthCallback() {
           localStorage.setItem("id_token", data.idToken);
         }
 
-        navigate("/");
+        await refreshUser();
+        navigate(returnTo);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Authentication failed");
       }
     };
 
     handleCallback();
-  }, [navigate]);
+  }, [navigate, refreshUser]);
 
   if (error) {
     return (

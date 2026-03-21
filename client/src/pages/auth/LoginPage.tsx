@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Github, Mail, Lock, User, Loader2 } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../lib/hooks/useAuth";
 import { PasswordStrengthIndicator } from "../../components/auth/PasswordStrengthIndicator";
 
@@ -12,7 +12,10 @@ export function LoginPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
   const { setIdToken } = useAuth();
+
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/";
 
   const handleGitHubLogin = () => {
     setIsLoading(true);
@@ -20,7 +23,7 @@ export function LoginPage() {
     const redirectUri = `${window.location.origin}/auth/callback/github`;
     const scope = "user:email";
 
-    const githubUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`;
+    const githubUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(from)}`;
 
     window.location.href = githubUrl;
   };
@@ -31,7 +34,7 @@ export function LoginPage() {
     const redirectUri = `${window.location.origin}/auth/callback/google`;
     const scope = "email profile";
 
-    const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
+    const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(from)}`;
 
     window.location.href = googleUrl;
   };
@@ -69,7 +72,7 @@ export function LoginPage() {
         if (data.idToken) {
           setIdToken(data.idToken);
         }
-        navigate("/");
+        navigate(from);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
