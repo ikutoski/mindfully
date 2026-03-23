@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { MotionConfig, AnimatePresence, motion } from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 import { DashboardLayout, ProtectedRoute,
   VerificationBanner
 } from "./components/layout";
@@ -13,25 +13,6 @@ import {
   ActivityFeed,
 } from "./components/dashboard";
 import { useAuth } from "./lib/hooks";
-
-const pageVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" as const } },
-  exit:   { opacity: 0, y: -8, transition: { duration: 0.18, ease: "easeIn" as const } },
-};
-
-function PageTransition({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      variants={pageVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-    >
-      {children}
-    </motion.div>
-  );
-}
 
 const containerVariants = {
   hidden: {},
@@ -83,78 +64,28 @@ function Dashboard() {
 }
 
 function AnimatedRoutes() {
-  const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/login" element={<LoginRedirect />} />
-        <Route path="/auth/callback/:provider" element={<OAuthCallback />} />
-        <Route path="/verify-email" element={<VerifyEmailPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route
-          path="/settings/sessions"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <PageTransition><SessionsPage /></PageTransition>
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/agents"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <PageTransition><AgentsPage /></PageTransition>
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/agents/new"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <PageTransition><AgentCreatePage /></PageTransition>
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/agents/:id/run"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <PageTransition><AgentRunPage /></PageTransition>
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/agents/:id"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <PageTransition><AgentEditPage /></PageTransition>
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout>
-                <Dashboard />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AnimatePresence>
+    <Routes>
+      {/* Auth routes — no persistent layout */}
+      <Route path="/login" element={<LoginRedirect />} />
+      <Route path="/auth/callback/:provider" element={<OAuthCallback />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+      {/* App routes — DashboardLayout persists, transitions handled inside layout */}
+      <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/settings" element={<Navigate to="/settings/sessions" replace />} />
+        <Route path="/settings/sessions" element={<SessionsPage />} />
+        <Route path="/agents" element={<AgentsPage />} />
+        <Route path="/agents/new" element={<AgentCreatePage />} />
+        <Route path="/agents/:id/run" element={<AgentRunPage />} />
+        <Route path="/agents/:id" element={<AgentEditPage />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

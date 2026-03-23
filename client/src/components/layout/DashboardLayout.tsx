@@ -1,13 +1,22 @@
 import { useState, useEffect } from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 
+const pageVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" as const } },
+  exit:   { opacity: 0, y: -8, transition: { duration: 0.18, ease: "easeIn" as const } },
+};
+
 interface DashboardLayoutProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const stored = localStorage.getItem("sidebarCollapsed");
     return stored === "true";
@@ -101,7 +110,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {!isMobile && <Header />}
 
         <main className="flex-1 p-4 md:p-6 lg:p-8 layout-main">
-          {children}
+          {children ?? (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                variants={pageVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
+          )}
         </main>
       </div>
     </div>
